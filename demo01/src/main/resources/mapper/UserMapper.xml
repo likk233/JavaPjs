@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.UserMapper">
+
+    <!-- 列名与实体字段映射（数据库下划线 -> Java 驼峰） -->
+    <resultMap id="userResultMap" type="com.example.entity.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+    </resultMap>
+
+    <!-- 新增用户，useGeneratedKeys 将自增主键回填到 user.id -->
+    <insert id="insert" parameterType="com.example.entity.User"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user (username, password)
+        VALUES (#{username}, #{password})
+    </insert>
+
+    <!-- 根据主键查询 -->
+    <select id="selectById" parameterType="java.lang.Integer" resultMap="userResultMap">
+        SELECT id, username, password
+        FROM user
+        WHERE id = #{id}
+    </select>
+
+    <!-- 查询所有用户 -->
+    <select id="selectAll" resultMap="userResultMap">
+        SELECT id, username, password
+        FROM user
+    </select>
+
+    <!-- 根据用户名查询 -->
+    <select id="selectByUsername" parameterType="java.lang.String" resultMap="userResultMap">
+        SELECT id, username, password
+        FROM user
+        WHERE username = #{username}
+    </select>
+
+    <!-- 根据主键更新 -->
+    <update id="updateById" parameterType="com.example.entity.User">
+        UPDATE user
+        SET username = #{username},
+            password = #{password}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 根据主键删除 -->
+    <delete id="deleteById" parameterType="java.lang.Integer">
+        DELETE FROM user
+        WHERE id = #{id}
+    </delete>
+
+</mapper>

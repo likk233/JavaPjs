@@ -1,4 +1,6 @@
 #NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
-#Thu Sep 10 10:06:58 HKT 2026
+#Thu Sep 24 09:48:32 CST 2026
+maven-compiler-plugin-3.11.0.jar>aliyunmaven=
 maven-compiler-plugin-3.11.0.jar>central=
+maven-compiler-plugin-3.11.0.pom>aliyunmaven=
 maven-compiler-plugin-3.11.0.pom>central=
