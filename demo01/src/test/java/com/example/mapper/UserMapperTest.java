@@ -41,7 +41,7 @@ public class UserMapperTest {
                 mapper.deleteById(u.getId());
             }
 
-            User user = new User(null, TEST_USERNAME, TEST_PASSWORD);
+            User user = new User(null, TEST_USERNAME, TEST_PASSWORD, "zhangsan@qq.com");
             int rows = mapper.insert(user);
             assertEquals(1, rows, "插入应影响 1 行");
             assertNotNull(user.getId(), "自增主键应回填到 user.id");
@@ -93,7 +93,7 @@ public class UserMapperTest {
         try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
             UserMapper mapper = session.getMapper(UserMapper.class);
 
-            User user = new User(insertedId, TEST_USERNAME, NEW_PASSWORD);
+            User user = new User(insertedId, TEST_USERNAME, NEW_PASSWORD, "zhangsan@qq.com");
             int rows = mapper.updateById(user);
             assertEquals(1, rows, "更新应影响 1 行");
 
@@ -113,6 +113,29 @@ public class UserMapperTest {
 
             User user = mapper.selectById(insertedId);
             assertNull(user, "删除后按主键查询应为 null");
+        }
+    }
+
+    @Test
+    @Order(7)
+    void testFindAll() throws Exception {
+        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
+            // 重置表，使自增主键从 1 开始，保证输出与预期一致
+            try (java.sql.Statement st = session.getConnection().createStatement()) {
+                st.execute("TRUNCATE TABLE user");
+            }
+
+            UserMapper mapper = session.getMapper(UserMapper.class);
+
+            mapper.insert(new User(null, "张三", "123", "zhangsan@qq.com"));
+            mapper.insert(new User(null, "李四", "456", "lisi@qq.com"));
+            mapper.insert(new User(null, "王五", "789", "wangwu@qq.com"));
+
+            List<User> users = mapper.findAll();
+            assertEquals(3, users.size(), "应查询到 3 条用户");
+            for (User u : users) {
+                System.out.println(u);
+            }
         }
     }
 }

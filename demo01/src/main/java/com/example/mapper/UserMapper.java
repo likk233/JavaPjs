@@ -18,6 +18,9 @@ public interface UserMapper {
     /** 查询所有用户 */
     List<User> selectAll();
 
+    /** 查询所有用户（含 email），供 testFindAll 使用 */
+    List<User> findAll();
+
     /** 根据用户名查询（演示条件查询） */
     List<User> selectByUsername(String username);
 

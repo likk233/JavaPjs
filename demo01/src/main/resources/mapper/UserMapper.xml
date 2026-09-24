@@ -9,31 +9,38 @@
         <id property="id" column="id"/>
         <result property="username" column="username"/>
         <result property="password" column="password"/>
+        <result property="email" column="email"/>
     </resultMap>
 
     <!-- 新增用户，useGeneratedKeys 将自增主键回填到 user.id -->
     <insert id="insert" parameterType="com.example.entity.User"
             useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO user (username, password)
-        VALUES (#{username}, #{password})
+        INSERT INTO user (username, password, email)
+        VALUES (#{username}, #{password}, #{email})
     </insert>
 
     <!-- 根据主键查询 -->
     <select id="selectById" parameterType="java.lang.Integer" resultMap="userResultMap">
-        SELECT id, username, password
+        SELECT id, username, password, email
         FROM user
         WHERE id = #{id}
     </select>
 
     <!-- 查询所有用户 -->
     <select id="selectAll" resultMap="userResultMap">
-        SELECT id, username, password
+        SELECT id, username, password, email
+        FROM user
+    </select>
+
+    <!-- 查询所有用户（含 email），供 testFindAll 使用 -->
+    <select id="findAll" resultMap="userResultMap">
+        SELECT id, username, password, email
         FROM user
     </select>
 
     <!-- 根据用户名查询 -->
     <select id="selectByUsername" parameterType="java.lang.String" resultMap="userResultMap">
-        SELECT id, username, password
+        SELECT id, username, password, email
         FROM user
         WHERE username = #{username}
     </select>
@@ -42,7 +49,8 @@
     <update id="updateById" parameterType="com.example.entity.User">
         UPDATE user
         SET username = #{username},
-            password = #{password}
+            password = #{password},
+            email = #{email}
         WHERE id = #{id}
     </update>
 
