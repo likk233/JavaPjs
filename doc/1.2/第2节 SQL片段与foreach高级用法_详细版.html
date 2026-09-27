@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第2节 SQL片段与foreach高级用法 - 第04章 Mybatis动态SQL与多表高级开发</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; line-height: 1.8; color: #333; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 15px; font-size: 28px; margin-bottom: 30px; }
+        h2 { color: #2980b9; margin: 35px 0 20px 0; padding-left: 15px; border-left: 4px solid #3498db; font-size: 22px; }
+        h3 { color: #34495e; margin: 25px 0 15px 0; font-size: 18px; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 5px; overflow-x: auto; font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Consolas', 'Monaco', monospace; color: #e74c3c; }
+        pre code { background: transparent; padding: 0; color: inherit; }
+        .note { background: #e8f4f8; border-left: 4px solid #3498db; padding: 15px 20px; margin: 20px 0; border-radius: 0 5px 5px 0; }
+        .note-title { font-weight: bold; color: #2980b9; margin-bottom: 8px; }
+        .warning { background: #fef9e7; border-left: 4px solid #f39c12; padding: 15px 20px; margin: 20px 0; border-radius: 0 5px 5px 0; }
+        .warning-title { font-weight: bold; color: #f39c12; margin-bottom: 8px; }
+        .tip { background: #e8f8f5; border-left: 4px solid #1abc9c; padding: 15px 20px; margin: 20px 0; border-radius: 0 5px 5px 0; }
+        .tip-title { font-weight: bold; color: #1abc9c; margin-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { background: #3498db; color: white; padding: 12px 15px; text-align: left; font-weight: bold; }
+        td { border: 1px solid #ddd; padding: 12px 15px; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        ul, ol { margin: 15px 0; padding-left: 30px; }
+        li { margin: 8px 0; }
+        .section { margin-bottom: 40px; }
+        .example-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>第2节 SQL片段与foreach高级用法</h1>
+
+        <div class="note">
+            <div class="note-title">📚 本节概述</div>
+            本节讲解MyBatis中sql标签定义可复用片段，以及foreach标签的批量操作能力。包括批量插入、批量更新、IN查询等常见场景的解决方案。学时安排：理论2学时。
+        </div>
+
+        <h2>一、sql标签 — SQL片段复用</h2>
+
+        <div class="section">
+            <h3>1.1 为什么需要SQL片段</h3>
+            <p>在实际的Mapper.xml文件中，很多SELECT语句会有重复的列名列表。通过<code>&lt;sql&gt;</code>标签可以定义可复用的SQL片段，减少重复代码，提高可维护性。</p>
+
+            <h3>1.2 定义和引用SQL片段</h3>
+            <pre><code>&lt;!-- 定义SQL片段 --&gt;
+&lt;sql id="userColumns"&gt;
+    id, username, email, phone, status, create_time, update_time
+&lt;/sql&gt;
+
+&lt;!-- 在SELECT中引用 --&gt;
+&lt;select id="selectAll" resultType="com.example.entity.User"&gt;
+    SELECT &lt;include refid="userColumns"/&gt;
+    FROM user
+&lt;/select&gt;
+
+&lt;!-- 在另一个SELECT中复用 --&gt;
+&lt;select id="selectById" resultType="com.example.entity.User"&gt;
+    SELECT &lt;include refid="userColumns"/&gt;
+    FROM user
+    WHERE id = #{id}
+&lt;/select&gt;</code></pre>
+
+            <h3>1.3 SQL片段中引用其他片段</h3>
+            <pre><code>&lt;sql id="commonColumns"&gt;
+    id, create_time, update_time
+&lt;/sql&gt;
+
+&lt;sql id="userColumns"&gt;
+    &lt;include refid="commonColumns"/&gt;,
+    username, email, phone, status
+&lt;/sql&gt;</code></pre>
+
+            <div class="tip">
+                <div class="tip-title">💡 SQL片段最佳实践</div>
+                <ul>
+                    <li>将通用的列名定义为SQL片段，便于统一管理和修改</li>
+                    <li>片段中可以包含WHERE条件、JOIN条件等复杂内容</li>
+                    <li>片段中可以再引用其他片段，形成组合</li>
+                    <li>片段应该在文件顶部定义，方便查找和维护</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>二、foreach标签 — 批量操作</h2>
+
+        <div class="section">
+            <h3>2.1 foreach标签属性</h3>
+            <table>
+                <tr><th>属性</th><th>说明</th><th>示例</th></tr>
+                <tr><td>collection</td><td>要遍历的集合/数组/Map</td><td>list / array / ids</td></tr>
+                <tr><td>item</td><td>遍历时每个元素的变量名</td><td>item / user / id</td></tr>
+                <tr><td>index</td><td>遍历时的索引（从0开始）</td><td>index</td></tr>
+                <tr><td>open</td><td>循环开始前添加的字符</td><td>(</td></tr>
+                <tr><td>close</td><td>循环结束后添加的字符</td><td>)</td></tr>
+                <tr><td>separator</td><td>元素之间的分隔符</td><td>,</td></tr>
+            </table>
+
+            <h3>2.2 批量IN查询</h3>
+            <p>最常见的场景：根据多个ID查询记录。</p>
+            <pre><code>&lt;!-- Mapper接口 --&gt;
+List&lt;User&gt; selectByIds(@Param("ids") List&lt;Long&gt; ids);
+
+/*&gt;</code></pre>
+            <pre><code>&lt;select id="selectByIds" resultType="com.example.entity.User"&gt;
+    SELECT &lt;include refid="userColumns"/&gt;
+    FROM user
+    WHERE id IN
+    &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+        #{id}
+    &lt;/foreach&gt;
+&lt;/select&gt;</code></pre>
+
+            <div class="tip">
+                <div class="tip-title">💡 生成效果</div>
+                当ids=[1,2,3,5,8]时，最终SQL为：<code>WHERE id IN (1, 2, 3, 5, 8)</code>
+            </div>
+
+            <h3>2.3 批量插入</h3>
+            <pre><code>&lt;!-- Mapper接口 --&gt;
+int batchInsert(@Param("users") List&lt;User&gt; users);
+
+/*&gt;</code></pre>
+            <pre><code>&lt;insert id="batchInsert" parameterType="java.util.List"&gt;
+    INSERT INTO user (username, email, phone, status, create_time) VALUES
+    &lt;foreach collection="users" item="user" separator=","&gt;
+        (
+            #{user.username},
+            #{user.email},
+            #{user.phone},
+            #{user.status},
+            NOW()
+        )
+    &lt;/foreach&gt;
+&lt;/insert&gt;</code></pre>
+
+            <div class="warning">
+                <div class="warning-title">⚠️ 批量插入注意事项</div>
+                <ul>
+                    <li>MySQL批量插入建议不超过1000条，超过建议分批执行</li>
+                    <li>Oracle数据库使用foreach批量插入时语法略有不同</li>
+                    <li>MyBatis的foreach会生成一条SQL，效率远高于循环单条插入</li>
+                </ul>
+            </div>
+
+            <h3>2.4 批量更新（MySQL）</h3>
+            <pre><code>&lt;!-- Mapper接口 --&gt;
+int batchUpdateStatus(@Param("ids") List&lt;Long&gt; ids, @Param("status") Integer status);
+
+/*&gt;</code></pre>
+            <pre><code>&lt;update id="batchUpdateStatus"&gt;
+    UPDATE user SET status = #{status}, update_time = NOW()
+    WHERE id IN
+    &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+        #{id}
+    &lt;/foreach&gt;
+&lt;/update&gt;</code></pre>
+
+            <h3>2.5 批量更新（多值更新）</h3>
+            <pre><code>&lt;!-- Mapper接口 --&gt;
+int batchUpdateUsers(@Param("users") List&lt;User&gt; users);
+
+/*&gt;</code></pre>
+            <pre><code>&lt;update id="batchUpdateUsers"&gt;
+    &lt;foreach collection="users" item="user" separator=";"&gt;
+        UPDATE user
+        SET
+            username = #{user.username},
+            email = #{user.email},
+            status = #{user.status},
+            update_time = NOW()
+        WHERE id = #{user.id}
+    &lt;/foreach&gt;
+&lt;/update&gt;</code></pre>
+
+            <h3>2.6 使用foreach构建动态IN子句</h3>
+            <pre><code>&lt;!-- 多字段IN查询 --&gt;
+&lt;select id="selectByMultiConditions" resultType="com.example.entity.Order"&gt;
+    SELECT id, order_no, user_id, amount, status
+    FROM orders
+    WHERE (user_id, status) IN
+    &lt;foreach collection="conditions" item="cond" open="(" separator="," close=")"&gt;
+        (#{cond.userId}, #{cond.status})
+    &lt;/foreach&gt;
+&lt;/select&gt;</code></pre>
+        </div>
+
+        <h2>三、动态SQL综合应用</h2>
+
+        <div class="section">
+            <h3>3.1 动态多条件查询（带分页）</h3>
+            <pre><code>&lt;select id="dynamicSearch" resultType="com.example.entity.User"&gt;
+    SELECT &lt;include refid="userColumns"/&gt;
+    FROM user
+    &lt;where&gt;
+        &lt;if test="username != null and username != ''"&gt;
+            AND username LIKE CONCAT('%', #{username}, '%')
+        &lt;/if&gt;
+        &lt;if test="email != null and email != ''"&gt;
+            AND email = #{email}
+        &lt;/if&gt;
+        &lt;if test="status != null"&gt;
+            AND status = #{status}
+        &lt;/if&gt;
+        &lt;if test="ids != null and ids.size() > 0"&gt;
+            AND id IN
+            &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+                #{id}
+            &lt;/foreach&gt;
+        &lt;/if&gt;
+    &lt;/where&gt;
+    ORDER BY create_time DESC
+    LIMIT #{offset}, #{limit}
+&lt;/select&gt;</code></pre>
+
+            <h3>3.2 动态SET更新</h3>
+            <pre><code>&lt;update id="dynamicUpdate"&gt;
+    UPDATE user
+    &lt;set&gt;
+        &lt;if test="username != null and username != ''"&gt;
+            username = #{username},
+        &lt;/if&gt;
+        &lt;if test="email != null and email != ''"&gt;
+            email = #{email},
+        &lt;/if&gt;
+        &lt;if test="phone != null and phone != ''"&gt;
+            phone = #{phone},
+        &lt;/if&gt;
+        update_time = NOW(),
+    &lt;/set&gt;
+    WHERE id = #{id}
+&lt;/update&gt;</code></pre>
+        </div>
+
+        <h2>四、性能优化建议</h2>
+
+        <div class="section">
+            <div class="tip">
+                <div class="tip-title">💡 foreach性能优化</div>
+                <ul>
+                    <li><strong>批量IN查询</strong>：当IN的值过多（>1000）时，建议分批查询或改用临时表</li>
+                    <li><strong>批量插入</strong>：使用MySQL的批量INSERT语法，单次最多插入1000条</li>
+                    <li><strong>foreach循环更新</strong>：每条SQL前需要设置allowMultiQueries=true</li>
+                    <li><strong>避免在foreach中做复杂计算</strong>：foreach中的表达式应尽量简单</li>
+                    <li><strong>使用@Param注解</strong>：明确指定参数名，避免collection取值错误</li>
+                </ul>
+            </div>
+
+            <table>
+                <tr><th>操作类型</th><th>推荐批量大小</th><th>说明</th></tr>
+                <tr><td>批量INSERT</td><td>500-1000条/次</td><td>MySQL单条SQL最大长度限制</td></tr>
+                <tr><td>批量IN查询</td><td>&lt;1000个值</td><td>超过建议拆分为多个IN</td></tr>
+                <tr><td>批量UPDATE（多语句）</td><td>100-500条/次</td><td>依赖allowMultiQueries</td></tr>
+            </table>
+        </div>
+
+        <div class="note">
+            <div class="note-title">📝 本节小结</div>
+            <ul>
+                <li><code>&lt;sql&gt;</code>标签用于定义可复用的SQL片段，通过<code>&lt;include&gt;</code>引用</li>
+                <li><code>&lt;foreach&gt;</code>标签是批量操作的核心，支持批量IN查询、批量插入、批量更新</li>
+                <li>批量INSERT语法效率最高，避免在Java代码中循环调用单条INSERT</li>
+                <li>foreach的collection属性可以指定List、Array或Map的key</li>
+                <li>批量操作需要注意SQL长度和数据库参数限制</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

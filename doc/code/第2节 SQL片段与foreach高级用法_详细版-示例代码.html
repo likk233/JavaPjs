@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>案例示例代码 - 第2节 SQL片段与foreach高级用法</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; line-height: 1.8; color: #333; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #8e44ad; padding-bottom: 15px; margin-bottom: 30px; }
+        h2 { color: #7d3c98; border-left: 4px solid #8e44ad; padding-left: 15px; margin-top: 40px; }
+        h3 { color: #16a085; margin-top: 30px; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 5px; overflow-x: auto; font-size: 14px; }
+        code { font-family: 'Consolas', 'Monaco', monospace; }
+        .note { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }
+        .note.blue { background: #e8f4f8; border-left: 4px solid #3498db; }
+        .note.green { background: #d4edda; border-left: 4px solid #28a745; }
+        .note.purple { background: #f3e5f5; border-left: 4px solid #8e44ad; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #8e44ad; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        ul, ol { margin: 15px 0; padding-left: 30px; }
+        li { margin: 8px 0; }
+        .code-block { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .section-tag { display: inline-block; background: #8e44ad; color: white; padding: 2px 10px; border-radius: 12px; font-size: 12px; margin-right: 10px; }
+        .sql-keyword { color: #e67e22; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>案例示例代码 - 第2节 SQL片段与foreach高级用法</h1>
+
+        <div class="note blue">
+            <strong>本节内容概要：</strong>本节提供MyBatis SQL片段（sql/include）与foreach循环两大高级特性的完整示例代码。涵盖可复用SQL片段定义、foreach批量操作（INSERT/UPDATE/IN查询）、嵌套foreach、多表批量关联等企业级开发常用场景。
+        </div>
+
+        <!-- ==================== 一、SQL片段基础 ==================== -->
+        <h2>一、sql标签与include标签 - SQL片段复用</h2>
+
+        <div class="note green">
+            <strong>sql标签核心原理：</strong><code>&lt;sql id="片段ID"&gt;</code>用于定义可复用的SQL片段，<code>&lt;include refid="片段ID"&gt;</code>用于引用该片段。通过此机制，可以将公共字段、公共条件抽取出来，实现DRY（Don't Repeat Yourself）原则，减少维护成本。
+        </div>
+
+        <h3>1.1 基础用法 - 公共字段抽取</h3>
+        <div class="code-block">
+            <h4>UserMapper.xml - SQL片段基础用法</h4>
+            <pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd"&gt;
+
+&lt;mapper namespace="com.example.mybatis.mapper.UserMapper"&gt;
+
+    &lt;!-- ==================== SQL片段定义区 ==================== --&gt;
+
+    &lt;!-- 示例1-1：基础SQL片段 - 用户表公共字段 --&gt;
+    &lt;sql id="userColumns"&gt;
+        id, username, password, email, age, gender, address, create_time, status
+    &lt;/sql&gt;
+
+    &lt;!-- 示例1-2：带别名的SQL片段 - 用于关联查询 --&gt;
+    &lt;sql id="userColumnsWithAlias"&gt;
+        u.id, u.username, u.email, u.age, u.gender, u.address, u.status
+    &lt;/sql&gt;
+
+    &lt;!-- 示例1-3：带条件的SQL片段 - 公共WHERE条件 --&gt;
+    &lt;sql id="activeUserWhere"&gt;
+        WHERE status = 1
+    &lt;/sql&gt;
+
+    &lt;!-- 示例1-4：复杂SQL片段 - 排序语句 --&gt;
+    &lt;sql id="commonOrderBy"&gt;
+        ORDER BY id DESC, create_time DESC
+    &lt;/sql&gt;
+
+    &lt;!-- ==================== 查询语句使用片段 ==================== --&gt;
+
+    &lt;!-- 示例1-5：使用SQL片段查询所有用户 --&gt;
+    &lt;select id="findAll" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT &lt;include refid="userColumns"/&gt;
+        FROM tb_user
+        &lt;include refid="activeUserWhere"/&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例1-6：使用SQL片段 + where条件 --&gt;
+    &lt;select id="findActiveUsers" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT &lt;include refid="userColumns"/&gt;
+        FROM tb_user
+        &lt;include refid="activeUserWhere"/&gt;
+        AND age &gt;= #{minAge}
+        &lt;include refid="commonOrderBy"/&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例1-7：关联查询使用带别名的SQL片段 --&gt;
+    &lt;select id="findAllWithAlias" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT &lt;include refid="userColumnsWithAlias"/&gt;
+        FROM tb_user u
+        &lt;include refid="activeUserWhere"/&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例1-8：UPDATE语句中使用SQL片段 --&gt;
+    &lt;update id="updateBaseInfo"&gt;
+        UPDATE tb_user
+        SET
+            email = #{email},
+            address = #{address},
+            update_time = NOW()
+        WHERE id = #{id}
+    &lt;/update&gt;
+
+    &lt;!-- 示例1-9：INSERT语句中复用字段片段 --&gt;
+    &lt;insert id="insertUser" useGeneratedKeys="true" keyProperty="id"&gt;
+        INSERT INTO tb_user(
+            &lt;include refid="userColumns"/&gt;
+        ) VALUES (
+            #{id}, #{username}, #{password}, #{email}, #{age}, #{gender},
+            #{address}, #{createTime}, #{status}
+        )
+    &lt;/insert&gt;
+
+&lt;/mapper&gt;</code></pre>
+        </div>
+
+        <h3>1.2 SQL片段进阶 - 参数化片段与动态片段</h3>
+        <div class="code-block">
+            <h4>SQL片段的include与refid属性详解</h4>
+            <pre><code>&lt;!--
+    include标签的refid属性支持以下写法：
+    1. refid="片段ID" - 引用当前mapper中的片段
+    2. refid="命名空间.片段ID" - 引用其他mapper中的片段
+    3. ${属性名} - 使用${}在refid中动态拼接（谨慎使用，防SQL注入）
+    4. #{属性名} - 不支持，refid必须是字符串字面量
+--&gt;
+
+&lt;!-- 示例1-10：引用其他Mapper的SQL片段（跨Mapper复用） --&gt;
+&lt;!-- 在UserMapper.xml中： --&gt;
+&lt;select id="findUsersWithDept" resultType="UserVO"&gt;
+    SELECT &lt;include refid="userColumnsWithAlias"/&gt;,
+           &lt;include refid="com.example.mybatis.mapper.DeptMapper.deptColumns"/&gt;
+    FROM tb_user u
+    LEFT JOIN tb_dept d ON u.dept_id = d.id
+    WHERE u.status = 1
+&lt;/select&gt;
+
+&lt;!-- 示例1-11：SQL片段中嵌套include（片段引用片段） --&gt;
+&lt;sql id="fullUserColumns"&gt;
+    &lt;include refid="userColumnsWithAlias"/&gt;,
+    &lt;include refid="com.example.mybatis.mapper.DeptMapper.deptColumns"/&gt;
+&lt;/sql&gt;
+
+&lt;!-- 示例1-12：动态SQL片段（片段中包含if标签） --&gt;
+&lt;sql id="dynamicWhereClause"&gt;
+    &lt;where&gt;
+        &lt;if test="status != null"&gt;
+            AND status = #{status}
+        &lt;/if&gt;
+        &lt;if test="minAge != null"&gt;
+            AND age &gt;= #{minAge}
+        &lt;/if&gt;
+        &lt;if test="keyword != null and keyword != ''"&gt;
+            AND (username LIKE CONCAT('%', #{keyword}, '%')
+                 OR email LIKE CONCAT('%', #{keyword}, '%'))
+        &lt;/if&gt;
+    &lt;/where&gt;
+&lt;/sql&gt;
+
+&lt;!-- 引用动态片段 --&gt;
+&lt;select id="dynamicSearch" resultType="User"&gt;
+    SELECT &lt;include refid="userColumns"/&gt;
+    FROM tb_user
+    &lt;include refid="dynamicWhereClause"/&gt;
+    &lt;include refid="commonOrderBy"/&gt;
+&lt;/select&gt;
+
+&lt;!-- 示例1-13：SQL片段中使用${}动态字段名（需严格校验，防注入） --&gt;
+&lt;sql id="dynamicOrderBy"&gt;
+    ORDER BY ${sortField} ${sortOrder}
+&lt;/sql&gt;
+
+&lt;select id="orderByField" resultType="User"&gt;
+    SELECT &lt;include refid="userColumns"/&gt;
+    FROM tb_user
+    &lt;include refid="activeUserWhere"/&gt;
+    &lt;if test="sortField != null and sortField != ''"&gt;
+        &lt;include refid="dynamicOrderBy"/&gt;
+    &lt;/if&gt;
+&lt;/select&gt;</code></pre>
+        </div>
+
+        <!-- ==================== 二、foreach基础 ==================== -->
+        <h2>二、foreach标签详解 - 循环迭代与批量操作</h2>
+
+        <div class="note purple">
+            <strong>foreach标签核心属性：</strong>
+            <br><strong>collection</strong>：必填，要迭代的集合/数组/Map（List、Set、Map、数组）
+            <br><strong>item</strong>：必填，循环迭代时的当前元素别名，在标签体内通过#{item}引用
+            <br><strong>index</strong>：可选，当前迭代的索引（从0开始），Map迭代时为key
+            <br><strong>open</strong>：可选，迭代开始前拼接的字符（如"("）
+            <br><strong>separator</strong>：可选，每次迭代之间的分隔符（如","、" OR "）
+            <br><strong>close</strong>：可选，迭代结束后拼接的字符（如")"）
+        </div>
+
+        <h3>2.1 foreach基础 - IN查询</h3>
+        <div class="code-block">
+            <h4>UserMapper.java - foreach基础接口</h4>
+            <pre><code>package com.example.mybatis.mapper;
+
+import com.example.mybatis.entity.User;
+import org.apache.ibatis.annotations.Param;
+import java.util.List;
+import java.util.Set;
+import java.util.Map;
+
+public interface UserMapper {
+
+    /**
+     * 批量查询用户 - List参数
+     */
+    List&lt;User&gt; findByIds(@Param("ids") List&lt;Long&gt; ids);
+
+    /**
+     * 批量查询用户 - Set参数
+     */
+    List&lt;User&gt; findByIdSet(@Param("ids") Set&lt;Long&gt; ids);
+
+    /**
+     * 批量查询用户 - 数组参数
+     */
+    List&lt;User&gt; findByIdArray(@Param("ids") Long[] ids);
+
+    /**
+     * 批量查询多状态用户
+     */
+    List&lt;User&gt; findByStatuses(@Param("statuses") List&lt;Integer&gt; statuses);
+
+    /**
+     * Map参数遍历 - key为索引
+     */
+    List&lt;User&gt; findByConditionsMap(@Param("params") Map&lt;String, Object&gt; params);
+}</code></pre>
+        </div>
+
+        <div class="code-block">
+            <h4>UserMapper.xml - foreach IN查询示例</h4>
+            <pre><code>&lt;mapper namespace="com.example.mybatis.mapper.UserMapper"&gt;
+
+    &lt;!-- ==================== foreach基础示例 ==================== --&gt;
+
+    &lt;!-- 示例2-1：foreach基础 - List的IN查询 (1,2,3,4,5) --&gt;
+    &lt;select id="findByIds" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, age, gender, address, status
+        FROM tb_user
+        WHERE status = 1
+        AND id IN
+        &lt;!--
+            open: 开头拼接 "("
+            close: 结尾拼接 ")"
+            separator: 每个元素之间用 "," 分隔
+        --&gt;
+        &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+            #{id}
+        &lt;/foreach&gt;
+        &lt;!-- 最终生成: WHERE id IN (1, 2, 3, 4, 5) --&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例2-2：foreach - Set的IN查询 --&gt;
+    &lt;select id="findByIdSet" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, status
+        FROM tb_user
+        WHERE id IN
+        &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+            #{id}
+        &lt;/foreach&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例2-3：foreach - 数组的IN查询 --&gt;
+    &lt;select id="findByIdArray" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, status
+        FROM tb_user
+        WHERE id IN
+        &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+            #{id}
+        &lt;/foreach&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例2-4：foreach - 多状态IN查询（status IN (1, 2)） --&gt;
+    &lt;select id="findByStatuses" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, status
+        FROM tb_user
+        WHERE status IN
+        &lt;foreach collection="statuses" item="status" open="(" separator="," close=")"&gt;
+            #{status}
+        &lt;/foreach&gt;
+        ORDER BY id DESC
+    &lt;/select&gt;
+
+    &lt;!-- 示例2-5：foreach - Map遍历（key为字段名，value为值） --&gt;
+    &lt;select id="findByConditionsMap" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, age, status
+        FROM tb_user
+        WHERE 1 = 1
+        &lt;!-- params是一个Map: {username: "张三", status: 1} --&gt;
+        &lt;foreach collection="params" index="key" item="value"&gt;
+            AND ${key} = #{value}
+        &lt;/foreach&gt;
+        &lt;!-- 等价于: WHERE username = '张三' AND status = 1 --&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例2-6：foreach - 字符串集合IN查询 --&gt;
+    &lt;select id="findByUsernames" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, status
+        FROM tb_user
+        WHERE username IN
+        &lt;foreach collection="usernames" item="name" open="(" separator="," close=")"&gt;
+            #{name}
+        &lt;/foreach&gt;
+        &lt;!-- 如果用${}会导致: WHERE username IN ('zhangsan', 'lisi')
+             如果用#{}会导致: WHERE username IN (?, ?)
+             字符串类型推荐用#{name} --&gt;
+    &lt;/select&gt;
+
+&lt;/mapper&gt;</code></pre>
+        </div>
+
+        <h3>2.2 foreach进阶 - 批量INSERT</h3>
+        <div class="code-block">
+            <h4>UserMapper.java - 批量操作接口</h4>
+            <pre><code>package com.example.mybatis.mapper;
+
+import com.example.mybatis.entity.User;
+import org.apache.ibatis.annotations.Param;
+import java.util.List;
+
+public interface UserMapper {
+
+    /**
+     * 批量插入用户 - 返回插入条数
+     * INSERT INTO tb_user (cols) VALUES (vals1), (vals2), (vals3)
+     */
+    int batchInsertUsers(@Param("users") List&lt;User&gt; users);
+
+    /**
+     * 批量插入用户 - 返回主键列表（MySQL）
+     * useGeneratedKeys + keyProperty 自动回填主键
+     */
+    int batchInsertUsersWithKeys(@Param("users") List&lt;User&gt; users);
+
+    /**
+     * 批量更新用户
+     */
+    int batchUpdateUsers(@Param("users") List&lt;User&gt; users);
+
+    /**
+     * 批量删除用户
+     */
+    int batchDeleteUsers(@Param("ids") List&lt;Long&gt; ids);
+}</code></pre>
+        </div>
+
+        <div class="code-block">
+            <h4>UserMapper.xml - 批量INSERT详解</h4>
+            <pre><code>&lt;mapper namespace="com.example.mybatis.mapper.UserMapper"&gt;
+
+    &lt;!--
+        foreach批量INSERT注意事项：
+        1. MySQL默认允许最大包大小为4MB，可通过max_allowed_packet调整
+        2. 建议单次批量不超过1000条，超出时分批处理
+        3. 使用VALUES多行插入语法，效率远高于逐条INSERT
+        4. useGeneratedKeys + keyProperty 只返回第一条的主键，需手动处理
+    --&gt;
+
+    &lt;!-- 示例2-7：foreach批量INSERT - 基础版 --&gt;
+    &lt;insert id="batchInsertUsers"&gt;
+        INSERT INTO tb_user(
+            username, password, email, age, gender, address, status, create_time
+        ) VALUES
+        &lt;foreach collection="users" item="user" separator=","&gt;
+            (
+                #{user.username},
+                #{user.password},
+                #{user.email},
+                #{user.age},
+                #{user.gender},
+                #{user.address},
+                #{user.status},
+                NOW()
+            )
+        &lt;/foreach&gt;
+        &lt;!--
+            生成SQL示例：
+            INSERT INTO tb_user(cols) VALUES
+            ('zhangsan', 'pass1', 'z1@e.com', 20, 1, '北京', 1, NOW()),
+            ('lisi', 'pass2', 'l2@e.com', 22, 0, '上海', 1, NOW())
+        --&gt;
+    &lt;/insert&gt;
+
+    &lt;!-- 示例2-8：foreach批量INSERT - 自动回填主键版（MySQL） --&gt;
+    &lt;insert id="batchInsertUsersWithKeys" useGeneratedKeys="true"
+            keyProperty="id" databaseId="mysql"&gt;
+        INSERT INTO tb_user(
+            username, password, email, age, gender, address, status, create_time
+        ) VALUES
+        &lt;foreach collection="users" item="user" separator=","&gt;
+            (
+                #{user.username},
+                #{user.password},
+                #{user.email},
+                #{user.age},
+                #{user.gender},
+                #{user.address},
+                #{user.status},
+                NOW()
+            )
+        &lt;/foreach&gt;
+        &lt;!-- 重要：useGeneratedKeys只能回填第一个对象的主键
+             如果需要回填所有对象的主键，需要使用Oracle序列方式
+             或在Java代码中手动处理 --&gt;
+    &lt;/insert&gt;
+
+    &lt;!-- 示例2-9：foreach批量INSERT - Oracle序列版本 --&gt;
+    &lt;insert id="batchInsertUsersOracle" databaseId="oracle"&gt;
+        INSERT INTO tb_user(
+            id, username, password, email, age, gender, address, status
+        )
+        &lt;foreach collection="users" item="user" separator="SELECT 1 FROM DUAL UNION ALL SELECT "&gt;
+            SELECT SEQ_USER.NEXTVAL, #{user.username}, #{user.password},
+                   #{user.email}, #{user.age}, #{user.gender},
+                   #{user.address}, #{user.status}
+            FROM DUAL
+        &lt;/foreach&gt;
+    &lt;/insert&gt;
+
+    &lt;!-- 示例2-10：foreach批量INSERT - 包含selectKey获取序列 --&gt;
+    &lt;insert id="batchInsertWithSeq" databaseId="oracle"&gt;
+        &lt;selectKey keyProperty="id" resultType="long" order="BEFORE"&gt;
+            SELECT NVL(MAX(id), 0) + 1 FROM tb_user
+        &lt;/selectKey&gt;
+        INSERT INTO tb_user(
+            id, username, password, email, age, gender, address, status
+        ) VALUES
+        &lt;foreach collection="users" item="user" separator=","&gt;
+            (
+                #{user.id},
+                #{user.username},
+                #{user.password},
+                #{user.email},
+                #{user.age},
+                #{user.gender},
+                #{user.address},
+                #{user.status}
+            )
+        &lt;/foreach&gt;
+    &lt;/insert&gt;
+
+&lt;/mapper&gt;</code></pre>
+        </div>
+
+        <h3>2.3 foreach进阶 - 批量UPDATE与DELETE</h3>
+        <div class="code-block">
+            <h4>UserMapper.xml - 批量UPDATE与DELETE示例</h4>
+            <pre><code>&lt;mapper namespace="com.example.mybatis.mapper.UserMapper"&gt;
+
+    &lt;!-- 示例2-11：foreach批量UPDATE - CASE WHEN方式（推荐，一条SQL） --&gt;
+    &lt;update id="batchUpdateUsers"&gt;
+        UPDATE tb_user
+        SET update_time = NOW()
+        &lt;foreach collection="users" item="user"&gt;
+            , #{user.fieldName} = CASE id
+                &lt;foreach collection="users" item="u"&gt;
+                    WHEN #{u.id} THEN #{u.fieldValue}
+                &lt;/foreach&gt;
+            END
+        &lt;/foreach&gt;
+        WHERE id IN
+        &lt;foreach collection="users" item="user" open="(" separator="," close=")"&gt;
+            #{user.id}
+        &lt;/foreach&gt;
+    &lt;/update&gt;
+
+    &lt;!-- 示例2-12：foreach批量UPDATE - 简洁版（每条记录只更新相同字段） --&gt;
+    &lt;update id="batchUpdateStatus"&gt;
+        UPDATE tb_user
+        SET status = #{newStatus},
+            update_time = NOW()
+        WHERE id IN
+        &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+            #{id}
+        &lt;/foreach&gt;
+    &lt;/update&gt;
+
+    &lt;!-- 示例2-13：foreach批量UPDATE - 批量修改密码 --&gt;
+    &lt;update id="batchUpdatePassword"&gt;
+        UPDATE tb_user
+        SET password =
+        &lt;foreach collection="users" item="user" separator="" close=""&gt;
+            (CASE id
+                &lt;foreach collection="users" item="u"&gt;
+                    WHEN #{u.id} THEN #{u.newPassword}
+                &lt;/foreach&gt;
+            END)
+        &lt;/foreach&gt;
+        WHERE id IN
+        &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+            #{id}
+        &lt;/foreach&gt;
+        &lt;!-- 注意：此写法会导致UPDATE语句中只有最后一个user生效
+             实际生产中建议按批次逐条更新或使用存储过程 --&gt;
+    &lt;/update&gt;
+
+    &lt;!-- 示例2-14：foreach批量DELETE - 方式一：IN删除 --&gt;
+    &lt;delete id="batchDeleteUsers"&gt;
+        DELETE FROM tb_user
+        WHERE id IN
+        &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+            #{id}
+        &lt;/foreach&gt;
+        &lt;!-- 生成: DELETE FROM tb_user WHERE id IN (1, 2, 3) --&gt;
+    &lt;/delete&gt;
+
+    &lt;!-- 示例2-15：foreach批量DELETE - 方式二：多行DELETE --&gt;
+    &lt;delete id="batchDeleteUsersMultiRow"&gt;
+        &lt;foreach collection="ids" item="id" separator=";" close=";"&gt;
+            DELETE FROM tb_user WHERE id = #{id}
+        &lt;/foreach&gt;
+        &lt;!-- 生成: DELETE FROM tb_user WHERE id = 1; DELETE FROM tb_user WHERE id = 2; ...
+             注意：MyBatis默认只支持单语句执行，需开启allowMultiQueries=true --&gt;
+    &lt;/delete&gt;
+
+    &lt;!-- 示例2-16：foreach批量DELETE - 方式三：动态条件删除 --&gt;
+    &lt;delete id="batchDeleteByConditions"&gt;
+        DELETE FROM tb_user
+        WHERE
+        &lt;foreach collection="users" item="user" separator=" OR "&gt;
+            (id = #{user.id} AND username = #{user.username})
+        &lt;/foreach&gt;
+        &lt;!-- 生成: DELETE FROM tb_user WHERE
+             (id = 1 AND username = 'zhangsan')
+             OR (id = 2 AND username = 'lisi') --&gt;
+    &lt;/delete&gt;
+
+&lt;/mapper&gt;</code></pre>
+        </div>
+
+        <!-- ==================== 三、foreach高级用法 ==================== -->
+        <h2>三、foreach高级用法 - 复杂场景实战</h2>
+
+        <h3>3.1 嵌套foreach - Map遍历</h3>
+        <div class="code-block">
+            <h4>嵌套foreach详解 - Map&lt;String, List&lt;Object&gt;&gt;</h4>
+            <pre><code>&lt;!--
+    Map遍历场景：
+    1. Map&lt;String, Object&gt; - index为key，item为value
+    2. Map&lt;String, List&lt;Object&gt;&gt; - 外层遍历key，内层遍历List
+    3. List&lt;Map&lt;String, Object&gt;&gt; - 外层遍历List，内层遍历Map
+--&gt;
+
+&lt;!-- 示例3-1：Map&lt;String, Object&gt; 遍历 - 动态SET --&gt;
+&lt;update id="updateFields"&gt;
+    UPDATE tb_user
+    SET update_time = NOW()
+    &lt;foreach collection="params" index="field" item="value" separator=""&gt;
+        , ${field} = #{value}
+    &lt;/foreach&gt;
+    WHERE id = #{id}
+    &lt;!--
+        调用示例：
+        Map&lt;String, Object&gt; params = new HashMap&lt;&gt;();
+        params.put("email", "new@example.com");
+        params.put("address", "北京市");
+        mapper.updateFields(1L, params);
+        --&gt;
+&lt;/update&gt;
+
+&lt;!-- 示例3-2：List&lt;Map&lt;String, Object&gt;&gt; 遍历 - 批量INSERT动态字段 --&gt;
+&lt;insert id="batchInsertDynamic"&gt;
+    INSERT INTO tb_user_tag(user_id, tag_name, tag_value, create_time)
+    VALUES
+    &lt;foreach collection="tagList" item="tag" separator=","&gt;
+        (
+            #{tag.userId},
+            #{tag.tagName},
+            #{tag.tagValue},
+            NOW()
+        )
+    &lt;/foreach&gt;
+    &lt;!-- tagList: List&lt;Map&lt;String, Object&gt;&gt;
+         每个Map的key: userId, tagName, tagValue --&gt;
+&lt;/insert&gt;
+
+&lt;!-- 示例3-3：嵌套foreach - Map&lt;String, List&lt;String&gt;&gt; --&gt;
+&lt;select id="findByMultiCategories" resultType="Product"&gt;
+    SELECT id, product_name, category, price, stock
+    FROM tb_product
+    WHERE 1 = 1
+    &lt;!-- outerMap: Map&lt;String, List&lt;String&gt;&gt;
+         外层遍历: index="category", item="values"
+         内层遍历: collection="values", item="val"
+    --&gt;
+    &lt;foreach collection="outerMap" index="category" item="values"&gt;
+        AND (
+            &lt;foreach collection="values" item="val" separator=" OR "&gt;
+                category = #{category} AND product_name LIKE CONCAT('%', #{val}, '%')
+            &lt;/foreach&gt;
+        )
+    &lt;/foreach&gt;
+    &lt;!-- outerMap示例: {"电子产品": ["手机", "电脑"], "食品": ["零食"]}
+         生成: WHERE 1=1
+         AND ((category='电子产品' AND name LIKE '%手机%') OR (category='电子产品' AND name LIKE '%电脑%'))
+         AND ((category='食品' AND name LIKE '%零食%')) --&gt;
+&lt;/select&gt;
+
+&lt;!-- 示例3-4：嵌套foreach - 多List的笛卡尔积查询 --&gt;
+&lt;select id="findCombination" resultType="Product"&gt;
+    SELECT DISTINCT p.id, p.product_name, p.category, p.price
+    FROM tb_product p
+    WHERE p.status = 1
+    AND (
+        &lt;foreach collection="categories" item="cat" separator=" OR "&gt;
+            p.category = #{cat}
+        &lt;/foreach&gt;
+    )
+    AND (
+        &lt;foreach collection="keywords" item="kw" separator=" OR "&gt;
+            p.product_name LIKE CONCAT('%', #{kw}, '%')
+        &lt;/foreach&gt;
+    )
+    &lt;!-- categories: ["电子产品", "食品"]
+         keywords: ["手机", "零食"]
+         相当于: WHERE category IN ('电子产品','食品')
+                 AND (name LIKE '%手机%' OR name LIKE '%零食%') --&gt;
+&lt;/select&gt;</code></pre>
+        </div>
+
+        <h3>3.2 foreach与动态SQL组合 - 复杂查询场景</h3>
+        <div class="code-block">
+            <h4>UserMapper.xml - 复杂动态查询</h4>
+            <pre><code>&lt;mapper namespace="com.example.mybatis.mapper.UserMapper"&gt;
+
+    &lt;!-- 示例3-5：动态IN + 多条件组合查询 --&gt;
+    &lt;select id="complexSearch" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, age, gender, address, status
+        FROM tb_user
+        WHERE 1 = 1
+        &lt;!-- IN查询：按用户名列表查询 --&gt;
+        &lt;if test="usernames != null and usernames.size() &gt; 0"&gt;
+            AND username IN
+            &lt;foreach collection="usernames" item="name" open="(" separator="," close=")"&gt;
+                #{name}
+            &lt;/foreach&gt;
+        &lt;/if&gt;
+        &lt;!-- IN查询：按状态列表查询 --&gt;
+        &lt;if test="statuses != null and statuses.size() &gt; 0"&gt;
+            AND status IN
+            &lt;foreach collection="statuses" item="s" open="(" separator="," close=")"&gt;
+                #{s}
+            &lt;/foreach&gt;
+        &lt;/if&gt;
+        &lt;!-- IN查询：按年龄段列表查询（age IN (18, 25, 30)） --&gt;
+        &lt;if test="ages != null and ages.size() &gt; 0"&gt;
+            AND age IN
+            &lt;foreach collection="ages" item="age" open="(" separator="," close=")"&gt;
+                #{age}
+            &lt;/foreach&gt;
+        &lt;/if&gt;
+        &lt;!-- 关键词模糊匹配 --&gt;
+        &lt;if test="keyword != null and keyword != ''"&gt;
+            AND (username LIKE CONCAT('%', #{keyword}, '%')
+                 OR email LIKE CONCAT('%', #{keyword}, '%'))
+        &lt;/if&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例3-6：foreach + choose 动态模式切换 --&gt;
+    &lt;select id="searchWithMode" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, age, status
+        FROM tb_user
+        WHERE 1 = 1
+        &lt;choose&gt;
+            &lt;!-- 模式A：批量ID查询 --&gt;
+            &lt;when test="ids != null and ids.size() &gt; 0"&gt;
+                AND id IN
+                &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+                    #{id}
+                &lt;/foreach&gt;
+            &lt;/when&gt;
+            &lt;!-- 模式B：批量用户名查询 --&gt;
+            &lt;when test="usernames != null and usernames.size() &gt; 0"&gt;
+                AND username IN
+                &lt;foreach collection="usernames" item="name" open="(" separator="," close=")"&gt;
+                    #{name}
+                &lt;/foreach&gt;
+            &lt;/when&gt;
+            &lt;!-- 模式C：默认条件 --&gt;
+            &lt;otherwise&gt;
+                AND status = 1
+            &lt;/otherwise&gt;
+        &lt;/choose&gt;
+        ORDER BY id DESC
+    &lt;/select&gt;
+
+    &lt;!-- 示例3-7：foreach + where + set 综合实战 --&gt;
+    &lt;select id="queryForUpdate" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, age, status
+        FROM tb_user
+        &lt;where&gt;
+            &lt;if test="status != null and status &gt;= 0"&gt;
+                AND status = #{status}
+            &lt;/if&gt;
+            &lt;if test="minAge != null"&gt;
+                AND age &gt;= #{minAge}
+            &lt;/if&gt;
+            &lt;if test="ids != null and ids.size() &gt; 0"&gt;
+                AND id IN
+                &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;
+                    #{id}
+                &lt;/foreach&gt;
+            &lt;/if&gt;
+        &lt;/where&gt;
+        FOR UPDATE
+    &lt;/select&gt;
+
+    &lt;!-- 示例3-8：复杂foreach - 多字段IN查询 --&gt;
+    &lt;select id="findByCompositeKeys" resultType="com.example.mybatis.entity.User"&gt;
+        SELECT id, username, email, status
+        FROM tb_user
+        WHERE (id, username) IN
+        &lt;foreach collection="keys" item="key" open="(" separator=") OR (id, username) IN (" close=")"&gt;
+            #{key.id}, #{key.username}
+        &lt;/foreach&gt;
+        &lt;!-- keys: List&lt;Map&lt;String, Object&gt;&gt;
+             每个Map: {id: 1, username: "zhangsan"}
+             生成: WHERE (id, username) IN (1, 'zhangsan') OR (id, username) IN (2, 'lisi')
+             注意：MySQL支持多列IN，但需注意数据类型的兼容性 --&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例3-9：foreach - 动态SELECT字段（防注入版） --&gt;
+    &lt;select id="dynamicSelectFields" resultType="map"&gt;
+        SELECT
+        &lt;foreach collection="fields" item="field" separator=","&gt;
+            ${field}
+        &lt;/foreach&gt;
+        FROM tb_user
+        WHERE status = 1
+        &lt;!-- 允许的字段白名单 --&gt;
+        &lt;if test="allowedFields == null or allowedFields.isEmpty"&gt;
+            AND 1 = 0
+        &lt;/if&gt;
+    &lt;/select&gt;
+
+&lt;/mapper&gt;</code></pre>
+        </div>
+
+        <h3>3.3 批量操作性能优化</h3>
+        <div class="code-block">
+            <h4>批量操作最佳实践</h4>
+            <pre><code>package com.example.mybatis.service;
+
+import com.example.mybatis.entity.User;
+import com.example.mybatis.mapper.UserMapper;
+import com.example.mybatis.util.SqlSessionUtil;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 批量操作最佳实践
+ */
+public class BatchOperationService {
+
+    private SqlSessionFactory sqlSessionFactory;
+
+    public BatchOperationService(SqlSessionFactory factory) {
+        this.sqlSessionFactory = factory;
+    }
+
+    /**
+     * 最佳实践1：大批量分批处理（防止SQL过长/内存溢出）
+     * 每次处理500条，MySQL的max_allowed_packet默认4MB
+     */
+    public int batchInsertLargeData(List&lt;User&gt; users) {
+        int total = 0;
+        int batchSize = 500;
+        List&lt;User&gt; batch = new ArrayList&lt;&gt;();
+
+        for (int i = 0; i &lt; users.size(); i++) {
+            batch.add(users.get(i));
+
+            // 每batchSize条执行一次
+            if (batch.size() == batchSize || i == users.size() - 1) {
+                try (SqlSession session = sqlSessionFactory.openSession(false)) {
+                    UserMapper mapper = session.getMapper(UserMapper.class);
+                    int rows = mapper.batchInsertUsers(batch);
+                    session.commit();
+                    total += rows;
+                    System.out.println("批次[" + (i / batchSize + 1) + "] 插入 " + rows + " 条");
+                    batch.clear();
+                } catch (Exception e) {
+                    System.err.println("批次插入失败: " + e.getMessage());
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        return total;
+    }
+
+    /**
+     * 最佳实践2：批量更新（按批次，每批500条）
+     */
+    public int batchUpdateLargeData(List&lt;User&gt; users) {
+        int total = 0;
+        int batchSize = 500;
+        List&lt;User&gt; batch = new ArrayList&lt;&gt;();
+
+        for (int i = 0; i &lt; users.size(); i++) {
+            batch.add(users.get(i));
+
+            if (batch.size() == batchSize || i == users.size() - 1) {
+                try (SqlSession session = sqlSessionFactory.openSession(false)) {
+                    UserMapper mapper = session.getMapper(UserMapper.class);
+                    int rows = mapper.batchUpdateUsers(batch);
+                    session.commit();
+                    total += rows;
+                    batch.clear();
+                }
+            }
+        }
+        return total;
+    }
+
+    /**
+     * 最佳实践3：使用ExecutorType.BATCH批处理模式（最高效）
+     * 将多次INSERT合并为一次网络往返
+     */
+    public int batchInsertWithBatchExecutor(List&lt;User&gt; users) {
+        // BATCH模式：所有SQL先缓存，最后flush时一起发送
+        try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
+            UserMapper mapper = session.getMapper(UserMapper.class);
+
+            int total = 0;
+            for (User user : users) {
+                mapper.batchInsertUsers(List.of(user)); // 每次只放1条
+                total++;
+                // 每500条flush一次，防止内存溢出
+                if (total % 500 == 0) {
+                    session.flushStatements();
+                }
+            }
+            session.commit();
+            return total;
+        }
+    }
+
+    /**
+     * 最佳实践4：批量删除（分批处理）
+     */
+    public int batchDeleteLargeData(List&lt;Long&gt; ids) {
+        int total = 0;
+        int batchSize = 500;
+        List&lt;Long&gt; batch = new ArrayList&lt;&gt;();
+
+        for (int i = 0; i &lt; ids.size(); i++) {
+            batch.add(ids.get(i));
+
+            if (batch.size() == batchSize || i == ids.size() - 1) {
+                try (SqlSession session = sqlSessionFactory.openSession(false)) {
+                    UserMapper mapper = session.getMapper(UserMapper.class);
+                    int rows = mapper.batchDeleteUsers(batch);
+                    session.commit();
+                    total += rows;
+                    batch.clear();
+                }
+            }
+        }
+        return total;
+    }
+}</code></pre>
+        </div>
+
+        <!-- ==================== 四、实战案例 ==================== -->
+        <h2>四、综合实战案例 - 订单批量处理系统</h2>
+
+        <h3>4.1 订单实体与批量操作</h3>
+        <div class="code-block">
+            <h4>Order.java - 订单实体</h4>
+            <pre><code>package com.example.mybatis.entity;
+
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 订单实体
+ */
+public class Order implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Long id;                  // 订单ID
+    private Long userId;             // 用户ID
+    private String orderNo;          // 订单号
+    private BigDecimal totalAmount; // 订单总额
+    private Integer itemCount;       // 商品数量
+    private Integer status;          // 状态: 0-待支付 1-已支付 2-已完成 3-已取消
+    private Date createTime;         // 创建时间
+    private Date payTime;            // 支付时间
+    private List&lt;OrderItem&gt; items;  // 订单明细列表
+
+    // Getter和Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
+    public String getOrderNo() { return orderNo; }
+    public void setOrderNo(String orderNo) { this.orderNo = orderNo; }
+    public BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public Integer getItemCount() { return itemCount; }
+    public void setItemCount(Integer itemCount) { this.itemCount = itemCount; }
+    public Integer getStatus() { return status; }
+    public void setStatus(Integer status) { this.status = status; }
+    public Date getCreateTime() { return createTime; }
+    public void setCreateTime(Date createTime) { this.createTime = createTime; }
+    public Date getPayTime() { return payTime; }
+    public void setPayTime(Date payTime) { this.payTime = payTime; }
+    public List&lt;OrderItem&gt; getItems() { return items; }
+    public void setItems(List&lt;OrderItem&gt; items) { this.items = items; }
+}
+
+/**
+ * 订单明细实体
+ */
+class OrderItem implements Serializable {
+    private Long id;
+    private Long orderId;
+    private Long productId;
+    private String productName;
+    private BigDecimal price;
+    private Integer quantity;
+    private BigDecimal subtotal;
+
+    // Getter/Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Long getOrderId() { return orderId; }
+    public void setOrderId(Long orderId) { this.orderId = orderId; }
+    public Long getProductId() { return productId; }
+    public void setProductId(Long productId) { this.productId = productId; }
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    public BigDecimal getSubtotal() { return subtotal; }
+    public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
+}</code></pre>
+        </div>
+
+        <div class="code-block">
+            <h4>OrderMapper.xml - 订单批量操作完整示例</h4>
+            <pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd"&gt;
+
+&lt;mapper namespace="com.example.mybatis.mapper.OrderMapper"&gt;
+
+    &lt;!-- SQL片段：订单公共字段 --&gt;
+    &lt;sql id="orderColumns"&gt;
+        id, user_id, order_no, total_amount, item_count, status, create_time, pay_time
+    &lt;/sql&gt;
+
+    &lt;!-- SQL片段：订单明细公共字段 --&gt;
+    &lt;sql id="orderItemColumns"&gt;
+        id, order_id, product_id, product_name, price, quantity, subtotal
+    &lt;/sql&gt;
+
+    &lt;!-- 示例4-1：批量创建订单（含订单明细） --&gt;
+    &lt;insert id="batchCreateOrders" useGeneratedKeys="true"
+            keyProperty="id" parameterType="java.util.List"&gt;
+        &lt;!-- 先批量插入订单主表 --&gt;
+        INSERT INTO tb_order(user_id, order_no, total_amount, item_count,
+                             status, create_time)
+        VALUES
+        &lt;foreach collection="list" item="order" separator=","&gt;
+            (
+                #{order.userId},
+                #{order.orderNo},
+                #{order.totalAmount},
+                #{order.itemCount},
+                #{order.status},
+                NOW()
+            )
+        &lt;/foreach&gt;
+        &lt;!-- keyProperty="id" 只回填第一个对象的主键 --&gt;
+    &lt;/insert&gt;
+
+    &lt;!-- 示例4-2：批量插入订单明细（嵌套foreach） --&gt;
+    &lt;insert id="batchInsertOrderItems" parameterType="java.util.List"&gt;
+        INSERT INTO tb_order_item(
+            order_id, product_id, product_name, price, quantity, subtotal, create_time
+        ) VALUES
+        &lt;foreach collection="list" item="order" separator=","&gt;
+            &lt;!-- 外层foreach：遍历每个订单 --&gt;
+            &lt;foreach collection="order.items" item="item" separator=","&gt;
+                &lt;!-- 内层foreach：遍历每个订单的明细 --&gt;
+                (
+                    #{order.id},
+                    #{item.productId},
+                    #{item.productName},
+                    #{item.price},
+                    #{item.quantity},
+                    #{item.subtotal},
+                    NOW()
+                )
+            &lt;/foreach&gt;
+        &lt;/foreach&gt;
+        &lt;!--
+            示例数据：
+            orders = [
+                {id: 1, items: [{pId:101, qty:2}, {pId:102, qty:1}]},
+                {id: 2, items: [{pId:103, qty:3}]}
+            ]
+            生成：
+            INSERT INTO tb_order_item(...) VALUES
+            (1, 101, ...), (1, 102, ...),
+            (2, 103, ...)
+        --&gt;
+    &lt;/insert&gt;
+
+    &lt;!-- 示例4-3：批量更新订单状态 --&gt;
+    &lt;update id="batchUpdateOrderStatus"&gt;
+        UPDATE tb_order
+        SET status = #{newStatus}
+        &lt;if test="newStatus == 2"&gt;
+            , pay_time = NOW()
+        &lt;/if&gt;
+        WHERE id IN
+        &lt;foreach collection="orderIds" item="id" open="(" separator="," close=")"&gt;
+            #{id}
+        &lt;/foreach&gt;
+        &lt;!-- 仅更新指定状态范围内的订单 --&gt;
+        &lt;if test="allowStatuses != null and allowStatuses.size() &gt; 0"&gt;
+            AND status IN
+            &lt;foreach collection="allowStatuses" item="s" open="(" separator="," close=")"&gt;
+                #{s}
+            &lt;/foreach&gt;
+        &lt;/if&gt;
+    &lt;/update&gt;
+
+    &lt;!-- 示例4-4：批量查询订单（多状态 + 日期范围 + 用户列表） --&gt;
+    &lt;select id="batchQueryOrders" resultType="com.example.mybatis.entity.Order"&gt;
+        SELECT &lt;include refid="orderColumns"/&gt;
+        FROM tb_order
+        WHERE 1 = 1
+        &lt;!-- 按用户ID列表查询 --&gt;
+        &lt;if test="userIds != null and userIds.size() &gt; 0"&gt;
+            AND user_id IN
+            &lt;foreach collection="userIds" item="uid" open="(" separator="," close=")"&gt;
+                #{uid}
+            &lt;/foreach&gt;
+        &lt;/if&gt;
+        &lt;!-- 按订单状态列表查询 --&gt;
+        &lt;if test="statuses != null and statuses.size() &gt; 0"&gt;
+            AND status IN
+            &lt;foreach collection="statuses" item="s" open="(" separator="," close=")"&gt;
+                #{s}
+            &lt;/foreach&gt;
+        &lt;/if&gt;
+        &lt;!-- 日期范围查询 --&gt;
+        &lt;if test="startDate != null"&gt;
+            AND create_time &gt;= #{startDate}
+        &lt;/if&gt;
+        &lt;if test="endDate != null"&gt;
+            AND create_time &lt;= #{endDate}
+        &lt;/if&gt;
+        &lt;!-- 按金额范围查询 --&gt;
+        &lt;if test="minAmount != null"&gt;
+            AND total_amount &gt;= #{minAmount}
+        &lt;/if&gt;
+        &lt;if test="maxAmount != null"&gt;
+            AND total_amount &lt;= #{maxAmount}
+        &lt;/if&gt;
+        ORDER BY create_time DESC
+        &lt;if test="pageNum != null and pageSize != null"&gt;
+            LIMIT #{pageNum}, #{pageSize}
+        &lt;/if&gt;
+    &lt;/select&gt;
+
+    &lt;!-- 示例4-5：批量取消订单（复杂条件组合） --&gt;
+    &lt;update id="batchCancelOrders"&gt;
+        UPDATE tb_order
+        SET status = 3,
+            update_time = NOW()
+        WHERE status IN
+        &lt;!-- 仅允许取消以下状态的订单 --&gt;
+        &lt;foreach collection="cancellableStatuses" item="s"
+                 open="(" separator="," close=")"&gt;
+            #{s}
+        &lt;/foreach&gt;
+        &lt;!-- 指定订单ID范围 --&gt;
+        &lt;if test="orderIds != null and orderIds.size() &gt; 0"&gt;
+            AND id IN
+            &lt;foreach collection="orderIds" item="id"
+                     open="(" separator="," close=")"&gt;
+                #{id}
+            &lt;/foreach&gt;
+        &lt;/if&gt;
+        &lt;!-- 指定用户范围 --&gt;
+        &lt;if test="userIds != null and userIds.size() &gt; 0"&gt;
+            AND user_id IN
+            &lt;foreach collection="userIds" item="uid"
+                     open="(" separator="," close=")"&gt;
+                #{uid}
+            &lt;/foreach&gt;
+        &lt;/if&gt;
+    &lt;/update&gt;
+
+    &lt;!-- 示例4-6：批量插入订单 - 使用Map&lt;String, Object&gt;方式 --&gt;
+    &lt;insert id="insertOrderFromMap" parameterType="java.util.Map"&gt;
+        INSERT INTO tb_order(user_id, order_no, total_amount, item_count, status)
+        VALUES
+        &lt;foreach collection="orders" item="orderMap" separator=","&gt;
+            (
+                #{orderMap.userId},
+                #{orderMap.orderNo},
+                #{orderMap.totalAmount},
+                #{orderMap.itemCount},
+                #{orderMap.status}
+            )
+        &lt;/foreach&gt;
+    &lt;/insert&gt;
+
+    &lt;!-- 示例4-7：foreach统计查询 - 统计各状态订单数量 --&gt;
+    &lt;select id="countByStatuses" resultType="map"&gt;
+        SELECT
+            &lt;foreach collection="statuses" item="s" separator=","&gt;
+                SUM(CASE WHEN status = #{s} THEN 1 ELSE 0 END) AS status_${s}_count
+            &lt;/foreach&gt;
+        FROM tb_order
+        WHERE 1 = 1
+        &lt;if test="startDate != null"&gt;
+            AND create_time &gt;= #{startDate}
+        &lt;/if&gt;
+        &lt;if test="endDate != null"&gt;
+            AND create_time &lt;= #{endDate}
+        &lt;/if&gt;
+    &lt;/select&gt;
+
+&lt;/mapper&gt;</code></pre>
+        </div>
+
+        <!-- ==================== 五、foreach参数说明 ==================== -->
+        <h2>五、foreach标签参数说明速查表</h2>
+
+        <table>
+            <tr><th>参数</th><th>必填</th><th>说明</th><th>示例</th></tr>
+            <tr><td>collection</td><td>是</td><td>要迭代的集合对象</td><td>collection="ids" / collection="list"</td></tr>
+            <tr><td>item</td><td>是</td><td>循环变量名，标签内用#{item}引用</td><td>item="id" → #{id}</td></tr>
+            <tr><td>index</td><td>否</td><td>当前索引（List为序号，Map为key）</td><td>index="i" → #{i}</td></tr>
+            <tr><td>open</td><td>否</td><td>开始字符</td><td>open="(" → 开头加 "("</td></tr>
+            <tr><td>separator</td><td>否</td><td>分隔符</td><td>separator="," → 元素间加 ","</td></tr>
+            <tr><td>close</td><td>否</td><td>结束字符</td><td>close=")" → 末尾加 ")"</td></tr>
+        </table>
+
+        <h3>5.1 collection参数类型对照表</h3>
+        <table>
+            <tr><th>Java类型</th><th>Mapper接口写法</th><th>XML中collection值</th><th>item引用方式</th></tr>
+            <tr><td>List&lt;Long&gt;</td><td>@Param("ids") List&lt;Long&gt; ids</td><td>ids</td><td>#{id}</td></tr>
+            <tr><td>Long[]</td><td>@Param("ids") Long[] ids</td><td>ids</td><td>#{id}</td></tr>
+            <tr><td>Set&lt;Long&gt;</td><td>@Param("ids") Set&lt;Long&gt; ids</td><td>ids</td><td>#{id}</td></tr>
+            <tr><td>List&lt;Map&gt;</td><td>@Param("list") List&lt;Map&gt; list</td><td>list</td><td>#{item.field}</td></tr>
+            <tr><td>Map&lt;String,Object&gt;</td><td>@Param("map") Map&lt;String,Object&gt; map</td><td>map</td><td>index为key, #{value}</td></tr>
+            <tr><td>无@Param List</td><td>List&lt;Long&gt; list</td><td>list</td><td>#{id}</td></tr>
+            <tr><td>无@Param 数组</td><td>Long[] array</td><td>array</td><td>#{id}</td></tr>
+        </table>
+
+        <div class="note green">
+            <strong>运行提示：</strong>foreach是MyBatis中最强大的标签之一，熟练掌握collection参数类型、嵌套使用、防注入写法，是成为MyBatis高手的必经之路。建议配合实际项目多加练习，特别是BATCH执行器的使用场景。
+        </div>
+
+    </div>
+</body>
+</html>

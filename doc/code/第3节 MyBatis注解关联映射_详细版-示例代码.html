@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第3节 MyBatis注解关联映射 - 示例代码</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; line-height: 1.8; color: #333; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 15px; margin-bottom: 30px; font-size: 28px; }
+        h2 { color: #2980b9; margin: 35px 0 20px 0; padding-left: 15px; border-left: 4px solid #3498db; font-size: 22px; }
+        h3 { color: #27ae60; margin: 25px 0 15px 0; font-size: 18px; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 5px; overflow-x: auto; margin: 15px 0; }
+        code { font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; }
+        .section { margin-bottom: 40px; }
+        .file-header { background: #34495e; color: white; padding: 10px 15px; margin: 20px 0 0 0; border-radius: 5px 5px 0 0; font-weight: bold; }
+        .file-content { margin: 0; border-radius: 0 0 5px 5px; }
+        .note { background: #e8f4f8; border-left: 4px solid #3498db; padding: 15px 20px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>第3节 MyBatis注解关联映射 - 完整示例代码</h1>
+        
+        <div class="section">
+            <h2>项目结构</h2>
+            <pre><code>mybatis-association-demo/
+├── pom.xml
+├── src/
+│   ├── main/
+│   │   ├── java/com/example/
+│   │   │   ├── pojo/
+│   │   │   │   ├── User.java
+│   │   │   │   ├── IdCard.java
+│   │   │   │   ├── Orders.java
+│   │   │   │   ├── Student.java
+│   │   │   │   └── Course.java
+│   │   │   ├── mapper/
+│   │   │   │   ├── UserMapper.java
+│   │   │   │   ├── IdCardMapper.java
+│   │   │   │   ├── OrdersMapper.java
+│   │   │   │   ├── StudentMapper.java
+│   │   │   │   └── CourseMapper.java
+│   │   │   └── provider/
+│   │   └── resources/
+│   │       ├── mybatis-config.xml
+│   │       └── log4j.properties
+│   └── test/
+│       └── java/com/example/test/
+│           ├── BaseTest.java
+│           ├── OneToOneTest.java
+│           ├── OneToManyTest.java
+│           └── ManyToManyTest.java
+└── sql/
+    └── association_schema.sql</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>1. 数据库脚本</h2>
+            <div class="file-header">sql/association_schema.sql</div>
+            <pre class="file-content"><code>-- 创建数据库
+CREATE DATABASE IF NOT EXISTS mybatis_association CHARACTER SET utf8mb4;
+USE mybatis_association;
+
+-- 创建用户表
+DROP TABLE IF EXISTS user;
+CREATE TABLE user (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '用户ID',
+    username VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
+    password VARCHAR(100) NOT NULL COMMENT '密码',
+    age INT DEFAULT 0 COMMENT '年龄',
+    email VARCHAR(100) COMMENT '邮箱',
+    phone VARCHAR(20) COMMENT '手机号',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted INT DEFAULT 0 COMMENT '删除标记：0-未删除，1-已删除'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+-- 创建身份证表（一对一关系）
+DROP TABLE IF EXISTS id_card;
+CREATE TABLE id_card (
+    card_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '身份证ID',
+    user_id INT UNIQUE NOT NULL COMMENT '用户ID',
+    card_no VARCHAR(18) NOT NULL COMMENT '身份证号',
+    address VARCHAR(200) COMMENT '地址',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_user_id(user_id),
+    FOREIGN KEY (user_id) REFERENCES user(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='身份证表';
+
+-- 创建订单表（一对多关系）
+DROP TABLE IF EXISTS orders;
+CREATE TABLE orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '订单ID',
+    user_id INT NOT NULL COMMENT '用户ID',
+    total_price DECIMAL(10,2) NOT NULL COMMENT '总金额',
+    status INT DEFAULT 0 COMMENT '状态：0-待支付，1-已支付，2-已发货，3-已完成，4-已取消',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id(user_id),
+    INDEX idx_status(status),
+    FOREIGN KEY (user_id) REFERENCES user(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单表';
+
+-- 创建学生表（多对多关系）
+DROP TABLE IF EXISTS student;
+CREATE TABLE student (
+    student_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '学生ID',
+    student_name VARCHAR(50) NOT NULL COMMENT '学生姓名',
+    age INT COMMENT '年龄'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='学生表';
+
+-- 创建课程表
+DROP TABLE IF EXISTS course;
+CREATE TABLE course (
+    course_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '课程ID',
+    course_name VARCHAR(100) NOT NULL COMMENT '课程名称',
+    teacher VARCHAR(50) COMMENT '教师'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程表';
+
+-- 创建选课表（中间表）
+DROP TABLE IF EXISTS student_course;
+CREATE TABLE student_course (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    student_id INT NOT NULL COMMENT '学生ID',
+    course_id INT NOT NULL COMMENT '课程ID',
+    score DECIMAL(5,2) COMMENT '成绩',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_student_course (student_id, course_id),
+    FOREIGN KEY (student_id) REFERENCES student(student_id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES course(course_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='选课表';
+
+-- 插入用户测试数据
+INSERT INTO user(username, password, age, email, phone) VALUES
+('zhangsan', '123456', 25, 'zhangsan@qq.com', '13800138001'),
+('lisi', '654321', 30, 'lisi@qq.com', '13800138002'),
+('wangwu', '111111', 28, 'wangwu@qq.com', '13800138003'),
+('zhaoliu', '222222', 35, 'zhaoliu@qq.com', '13800138004');
+
+-- 插入身份证测试数据
+INSERT INTO id_card(user_id, card_no, address) VALUES
+(1, '110101199001011234', '北京市朝阳区'),
+(2, '110101199101011235', '上海市浦东新区'),
+(3, '110101199201011236', '广州市天河区');
+
+-- 插入订单测试数据
+INSERT INTO orders(user_id, total_price, status) VALUES
+(1, 199.99, 1),
+(1, 299.50, 2),
+(2, 99.00, 0),
+(2, 1599.00, 3),
+(3, 49.90, 1),
+(3, 88.80, 2),
+(4, 366.00, 1),
+(4, 128.50, 0);
+
+-- 插入学生测试数据
+INSERT INTO student(student_name, age) VALUES
+('张三', 20),
+('李四', 21),
+('王五', 22);
+
+-- 插入课程测试数据
+INSERT INTO course(course_name, teacher) VALUES
+('Java编程', '刘老师'),
+('数据库原理', '王老师'),
+('Web开发', '张老师');
+
+-- 插入选课测试数据
+INSERT INTO student_course(student_id, course_id, score) VALUES
+(1, 1, 90.5),
+(1, 2, 85.0),
+(2, 1, 88.5),
+(2, 3, 92.0),
+(3, 2, 95.5),
+(3, 3, 87.5);
+
+-- 验证数据
+SELECT * FROM user WHERE deleted = 0;
+SELECT * FROM id_card;
+SELECT * FROM orders;
+SELECT * FROM student;
+SELECT * FROM course;
+SELECT * FROM student_course;
+
+-- 查询学生选课情况
+SELECT s.student_name, c.course_name, sc.score
+FROM student s
+INNER JOIN student_course sc ON s.student_id = sc.student_id
+INNER JOIN course c ON sc.course_id = c.course_id;</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>2. 实体类</h2>
+            <div class="file-header">src/main/java/com/example/pojo/User.java</div>
+            <pre class="file-content"><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.Date;
+import java.util.List;
+
+/**
+ * 用户实体类
+ */
+@Data
+public class User {
+    private Integer id;
+    private String username;
+    private String password;
+    private Integer age;
+    private String email;
+    private String phone;
+    private Date createTime;
+    private Date updateTime;
+    private Integer deleted;
+    
+    // 一对一关联：一个用户对应一个身份证
+    private IdCard idCard;
+    
+    // 一对多关联：一个用户有多个订单
+    private List&lt;Orders&gt; orders;
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/pojo/IdCard.java</div>
+            <pre class="file-content"><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.Date;
+
+/**
+ * 身份证实体类
+ */
+@Data
+public class IdCard {
+    private Integer cardId;
+    private Integer userId;
+    private String cardNo;
+    private String address;
+    private Date createTime;
+    
+    // 一对一关联：一个身份证对应一个用户
+    private User user;
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/pojo/Orders.java</div>
+            <pre class="file-content"><code>package com.example.pojo;
+
+import lombok.Data;
+import java.math.BigDecimal;
+import java.util.Date;
+
+/**
+ * 订单实体类
+ */
+@Data
+public class Orders {
+    private Integer orderId;
+    private Integer userId;
+    private BigDecimal totalPrice;
+    private Integer status;
+    private Date createTime;
+    private Date updateTime;
+    
+    // 多对一关联：多个订单属于一个用户
+    private User user;
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/pojo/Student.java</div>
+            <pre class="file-content"><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.List;
+
+/**
+ * 学生实体类
+ */
+@Data
+public class Student {
+    private Integer studentId;
+    private String studentName;
+    private Integer age;
+    
+    // 多对多关联：一个学生可以选择多门课程
+    private List&lt;Course&gt; courses;
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/pojo/Course.java</div>
+            <pre class="file-content"><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.List;
+
+/**
+ * 课程实体类
+ */
+@Data
+public class Course {
+    private Integer courseId;
+    private String courseName;
+    private String teacher;
+    
+    // 多对多关联：一门课程可以有多个学生选择
+    private List&lt;Student&gt; students;
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>3. Mapper接口 - 一对一关联</h2>
+            <div class="file-header">src/main/java/com/example/mapper/UserMapper.java（部分）</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import com.example.pojo.User;
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+
+/**
+ * 用户Mapper接口
+ */
+public interface UserMapper {
+    
+    /**
+     * 根据ID查询用户
+     */
+    @Select("SELECT * FROM user WHERE id = #{id} AND deleted = 0")
+    @Results(id = "userResultMap", value = {
+        @Result(property = "id", column = "id", id = true),
+        @Result(property = "username", column = "username"),
+        @Result(property = "password", column = "password"),
+        @Result(property = "age", column = "age"),
+        @Result(property = "email", column = "email"),
+        @Result(property = "phone", column = "phone"),
+        @Result(property = "createTime", column = "create_time"),
+        @Result(property = "updateTime", column = "update_time"),
+        @Result(property = "deleted", column = "deleted")
+    })
+    User findById(Integer id);
+    
+    /**
+     * 查询用户及其身份证（一对一关联）
+     */
+    @Select("SELECT * FROM user WHERE id = #{id} AND deleted = 0")
+    @Results({
+        @Result(property = "id", column = "id", id = true),
+        @Result(property = "username", column = "username"),
+        @Result(property = "idCard", column = "id",
+                one = @One(select = "com.example.mapper.IdCardMapper.findByUserId",
+                           fetchType = FetchType.LAZY))
+    })
+    User findUserWithIdCard(Integer id);
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/mapper/IdCardMapper.java</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import com.example.pojo.IdCard;
+import org.apache.ibatis.annotations.*;
+
+/**
+ * 身份证Mapper接口
+ */
+public interface IdCardMapper {
+    
+    /**
+     * 根据ID查询身份证
+     */
+    @Select("SELECT * FROM id_card WHERE card_id = #{cardId}")
+    @Results(id = "idCardResultMap", value = {
+        @Result(property = "cardId", column = "card_id", id = true),
+        @Result(property = "userId", column = "user_id"),
+        @Result(property = "cardNo", column = "card_no"),
+        @Result(property = "address", column = "address"),
+        @Result(property = "createTime", column = "create_time")
+    })
+    IdCard findById(Integer cardId);
+    
+    /**
+     * 根据用户ID查询身份证
+     */
+    @Select("SELECT * FROM id_card WHERE user_id = #{userId}")
+    @ResultMap("idCardResultMap")
+    IdCard findByUserId(Integer userId);
+    
+    /**
+     * 查询身份证及其对应的用户（一对一关联）
+     */
+    @Select("SELECT * FROM id_card WHERE card_id = #{cardId}")
+    @Results({
+        @Result(property = "cardId", column = "card_id", id = true),
+        @Result(property = "userId", column = "user_id"),
+        @Result(property = "cardNo", column = "card_no"),
+        @Result(property = "address", column = "address"),
+        @Result(property = "user", column = "user_id",
+                one = @One(select = "com.example.mapper.UserMapper.findById"))
+    })
+    IdCard findIdCardWithUser(Integer cardId);
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>4. Mapper接口 - 一对多关联</h2>
+            <div class="file-header">src/main/java/com/example/mapper/UserMapper.java（续）</div>
+            <pre class="file-content"><code>    /**
+     * 查询用户及其订单（一对多关联）
+     */
+    @Select("SELECT * FROM user WHERE id = #{id} AND deleted = 0")
+    @Results({
+        @Result(property = "id", column = "id", id = true),
+        @Result(property = "username", column = "username"),
+        @Result(property = "orders", column = "id",
+                many = @Many(select = "com.example.mapper.OrdersMapper.findByUserId",
+                             fetchType = FetchType.LAZY))
+    })
+    User findUserWithOrders(Integer id);
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/mapper/OrdersMapper.java</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import com.example.pojo.Orders;
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+
+/**
+ * 订单Mapper接口
+ */
+public interface OrdersMapper {
+    
+    /**
+     * 根据ID查询订单
+     */
+    @Select("SELECT * FROM orders WHERE order_id = #{orderId}")
+    @Results(id = "orderResultMap", value = {
+        @Result(property = "orderId", column = "order_id", id = true),
+        @Result(property = "userId", column = "user_id"),
+        @Result(property = "totalPrice", column = "total_price"),
+        @Result(property = "status", column = "status"),
+        @Result(property = "createTime", column = "create_time"),
+        @Result(property = "updateTime", column = "update_time")
+    })
+    Orders findById(Integer orderId);
+    
+    /**
+     * 根据用户ID查询订单
+     */
+    @Select("SELECT * FROM orders WHERE user_id = #{userId} ORDER BY create_time DESC")
+    @ResultMap("orderResultMap")
+    List&lt;Orders&gt; findByUserId(Integer userId);
+    
+    /**
+     * 查询订单及其用户（多对一关联）
+     */
+    @Select("SELECT * FROM orders WHERE order_id = #{orderId}")
+    @Results({
+        @Result(property = "orderId", column = "order_id", id = true),
+        @Result(property = "userId", column = "user_id"),
+        @Result(property = "totalPrice", column = "total_price"),
+        @Result(property = "user", column = "user_id",
+                one = @One(select = "com.example.mapper.UserMapper.findById"))
+    })
+    Orders findOrderWithUser(Integer orderId);
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>5. Mapper接口 - 多对多关联</h2>
+            <div class="file-header">src/main/java/com/example/mapper/StudentMapper.java</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import com.example.pojo.Student;
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+
+/**
+ * 学生Mapper接口
+ */
+public interface StudentMapper {
+    
+    /**
+     * 查询所有学生
+     */
+    @Select("SELECT * FROM student")
+    @Results(id = "studentResultMap", value = {
+        @Result(property = "studentId", column = "student_id", id = true),
+        @Result(property = "studentName", column = "student_name"),
+        @Result(property = "age", column = "age")
+    })
+    List&lt;Student&gt; findAll();
+    
+    /**
+     * 根据ID查询学生
+     */
+    @Select("SELECT * FROM student WHERE student_id = #{studentId}")
+    @ResultMap("studentResultMap")
+    Student findById(Integer studentId);
+    
+    /**
+     * 查询学生及其所选课程（多对多关联）
+     */
+    @Select("SELECT * FROM student WHERE student_id = #{studentId}")
+    @Results({
+        @Result(property = "studentId", column = "student_id", id = true),
+        @Result(property = "studentName", column = "student_name"),
+        @Result(property = "courses", column = "student_id",
+                many = @Many(select = "com.example.mapper.CourseMapper.findByStudentId"))
+    })
+    Student findStudentWithCourses(Integer studentId);
+    
+    /**
+     * 根据课程ID查询选课学生
+     */
+    @Select("SELECT s.* FROM student s " +
+            "INNER JOIN student_course sc ON s.student_id = sc.student_id " +
+            "WHERE sc.course_id = #{courseId}")
+    @ResultMap("studentResultMap")
+    List&lt;Student&gt; findByCourseId(Integer courseId);
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/mapper/CourseMapper.java</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import com.example.pojo.Course;
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+
+/**
+ * 课程Mapper接口
+ */
+public interface CourseMapper {
+    
+    /**
+     * 查询所有课程
+     */
+    @Select("SELECT * FROM course")
+    @Results(id = "courseResultMap", value = {
+        @Result(property = "courseId", column = "course_id", id = true),
+        @Result(property = "courseName", column = "course_name"),
+        @Result(property = "teacher", column = "teacher")
+    })
+    List&lt;Course&gt; findAll();
+    
+    /**
+     * 根据ID查询课程
+     */
+    @Select("SELECT * FROM course WHERE course_id = #{courseId}")
+    @ResultMap("courseResultMap")
+    Course findById(Integer courseId);
+    
+    /**
+     * 根据学生ID查询所选课程
+     */
+    @Select("SELECT c.* FROM course c " +
+            "INNER JOIN student_course sc ON c.course_id = sc.course_id " +
+            "WHERE sc.student_id = #{studentId}")
+    @ResultMap("courseResultMap")
+    List&lt;Course&gt; findByStudentId(Integer studentId);
+    
+    /**
+     * 查询课程及其选课学生（多对多关联）
+     */
+    @Select("SELECT * FROM course WHERE course_id = #{courseId}")
+    @Results({
+        @Result(property = "courseId", column = "course_id", id = true),
+        @Result(property = "courseName", column = "course_name"),
+        @Result(property = "students", column = "course_id",
+                many = @Many(select = "com.example.mapper.StudentMapper.findByCourseId"))
+    })
+    Course findCourseWithStudents(Integer courseId);
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>6. 测试类</h2>
+            <div class="file-header">src/test/java/com/example/test/OneToOneTest.java</div>
+            <pre class="file-content"><code>package com.example.test;
+
+import com.example.mapper.IdCardMapper;
+import com.example.mapper.UserMapper;
+import com.example.pojo.IdCard;
+import com.example.pojo.User;
+import org.apache.ibatis.session.SqlSession;
+import org.junit.Test;
+
+/**
+ * 一对一关联测试类
+ */
+public class OneToOneTest extends BaseTest {
+    
+    /**
+     * 测试一对一关联：查询用户及其身份证
+     */
+    @Test
+    public void testFindUserWithIdCard() {
+        UserMapper mapper = sqlSession.getMapper(UserMapper.class);
+        
+        // 查询用户（带有身份证信息）
+        User user = mapper.findUserWithIdCard(1);
+        
+        System.out.println("用户：" + user.getUsername());
+        System.out.println("年龄：" + user.getAge());
+        
+        // 访问关联属性（此时才会执行查询身份证的SQL）
+        if (user.getIdCard() != null) {
+            System.out.println("身份证号：" + user.getIdCard().getCardNo());
+            System.out.println("地址：" + user.getIdCard().getAddress());
+        }
+        
+        assert user != null : "用户不应该为null";
+    }
+    
+    /**
+     * 测试一对一关联：查询身份证及其用户
+     */
+    @Test
+    public void testFindIdCardWithUser() {
+        IdCardMapper mapper = sqlSession.getMapper(IdCardMapper.class);
+        
+        // 查询身份证（带有用户信息）
+        IdCard idCard = mapper.findIdCardWithUser(1);
+        
+        System.out.println("身份证号：" + idCard.getCardNo());
+        System.out.println("地址：" + idCard.getAddress());
+        
+        // 访问关联属性
+        if (idCard.getUser() != null) {
+            System.out.println("所属用户：" + idCard.getUser().getUsername());
+        }
+        
+        assert idCard != null : "身份证不应该为null";
+    }
+}</code></pre>
+
+            <div class="file-header">src/test/java/com/example/test/OneToManyTest.java</div>
+            <pre class="file-content"><code>package com.example.test;
+
+import com.example.mapper.OrdersMapper;
+import com.example.mapper.UserMapper;
+import com.example.pojo.Orders;
+import com.example.pojo.User;
+import org.apache.ibatis.session.SqlSession;
+import org.junit.Test;
+import java.util.List;
+
+/**
+ * 一对多关联测试类
+ */
+public class OneToManyTest extends BaseTest {
+    
+    /**
+     * 测试一对多关联：查询用户及其订单
+     */
+    @Test
+    public void testFindUserWithOrders() {
+        UserMapper mapper = sqlSession.getMapper(UserMapper.class);
+        
+        // 查询用户（带有订单信息）
+        User user = mapper.findUserWithOrders(1);
+        
+        System.out.println("用户：" + user.getUsername());
+        System.out.println("年龄：" + user.getAge());
+        
+        // 访问关联属性（此时才会执行查询订单的SQL）
+        List&lt;Orders&gt; orders = user.getOrders();
+        System.out.println("订单数：" + orders.size());
+        
+        for (Orders order : orders) {
+            System.out.println("  订单ID：" + order.getOrderId() + 
+                             "，金额：" + order.getTotalPrice());
+        }
+        
+        assert user != null : "用户不应该为null";
+        assert orders.size() > 0 : "订单数应该大于0";
+    }
+    
+    /**
+     * 测试多对一关联：查询订单及其用户
+     */
+    @Test
+    public void testFindOrderWithUser() {
+        OrdersMapper mapper = sqlSession.getMapper(OrdersMapper.class);
+        
+        // 查询订单（带有用户信息）
+        Orders order = mapper.findOrderWithUser(1);
+        
+        System.out.println("订单ID：" + order.getOrderId());
+        System.out.println("金额：" + order.getTotalPrice());
+        
+        // 访问关联属性
+        if (order.getUser() != null) {
+            System.out.println("所属用户：" + order.getUser().getUsername());
+        }
+        
+        assert order != null : "订单不应该为null";
+    }
+}</code></pre>
+
+            <div class="file-header">src/test/java/com/example/test/ManyToManyTest.java</div>
+            <pre class="file-content"><code>package com.example.test;
+
+import com.example.mapper.CourseMapper;
+import com.example.mapper.StudentMapper;
+import com.example.pojo.Course;
+import com.example.pojo.Student;
+import org.apache.ibatis.session.SqlSession;
+import org.junit.Test;
+import java.util.List;
+
+/**
+ * 多对多关联测试类
+ */
+public class ManyToManyTest extends BaseTest {
+    
+    /**
+     * 测试多对多关联：查询学生及其所选课程
+     */
+    @Test
+    public void testFindStudentWithCourses() {
+        StudentMapper mapper = sqlSession.getMapper(StudentMapper.class);
+        
+        Student student = mapper.findStudentWithCourses(1);
+        
+        System.out.println("学生：" + student.getStudentName());
+        System.out.println("年龄：" + student.getAge());
+        
+        List&lt;Course&gt; courses = student.getCourses();
+        System.out.println("所选课程数：" + courses.size());
+        
+        for (Course course : courses) {
+            System.out.println("  课程：" + course.getCourseName() + 
+                             "，教师：" + course.getTeacher());
+        }
+        
+        assert student != null : "学生不应该为null";
+        assert courses.size() > 0 : "课程数应该大于0";
+    }
+    
+    /**
+     * 测试多对多关联：查询课程及其选课学生
+     */
+    @Test
+    public void testFindCourseWithStudents() {
+        CourseMapper mapper = sqlSession.getMapper(CourseMapper.class);
+        
+        Course course = mapper.findCourseWithStudents(1);
+        
+        System.out.println("课程：" + course.getCourseName());
+        System.out.println("教师：" + course.getTeacher());
+        
+        List&lt;Student&gt; students = course.getStudents();
+        System.out.println("选课学生数：" + students.size());
+        
+        for (Student student : students) {
+            System.out.println("  学生：" + student.getStudentName() + 
+                             "，年龄：" + student.getAge());
+        }
+        
+        assert course != null : "课程不应该为null";
+    }
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>7. 运行说明</h2>
+            <div class="note">
+                <h3>编译项目</h3>
+                <pre><code>cd mybatis-association-demo
+mvn clean compile</code></pre>
+                
+                <h3>运行所有测试</h3>
+                <pre><code>mvn test</code></pre>
+                
+                <h3>运行单个测试类</h3>
+                <pre><code>mvn test -Dtest=OneToOneTest
+mvn test -Dtest=OneToManyTest
+mvn test -Dtest=ManyToManyTest</code></pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>8. 注意事项</h2>
+            <div class="note">
+                <ol>
+                    <li>确保数据库 <code>mybatis_association</code> 已创建并导入测试数据</li>
+                    <li>修改 <code>mybatis-config.xml</code> 中的数据库连接信息</li>
+                    <li>一对一关联查询时，避免双向关联都设置为立即加载（会导致无限递归）</li>
+                    <li>对于不常用的关联数据，建议使用延迟加载（FetchType.LAZY）</li>
+                    <li>观察SQL日志，理解嵌套查询（N+1问题）和延迟加载的效果</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

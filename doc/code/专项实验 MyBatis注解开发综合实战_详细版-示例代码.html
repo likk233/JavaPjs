@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专项实验 MyBatis注解开发综合实战 - 示例代码</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; line-height: 1.8; color: #333; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 15px; margin-bottom: 30px; font-size: 28px; }
+        h2 { color: #2980b9; margin: 35px 0 20px 0; padding-left: 15px; border-left: 4px solid #3498db; font-size: 22px; }
+        h3 { color: #27ae60; margin: 25px 0 15px 0; font-size: 18px; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 5px; overflow-x: auto; margin: 15px 0; }
+        code { font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; }
+        .section { margin-bottom: 40px; }
+        .file-header { background: #34495e; color: white; padding: 10px 15px; margin: 20px 0 0 0; border-radius: 5px 5px 0 0; font-weight: bold; }
+        .file-content { margin: 0; border-radius: 0 0 5px 5px; }
+        .note { background: #e8f4f8; border-left: 4px solid #3498db; padding: 15px 20px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>专项实验：MyBatis注解开发综合实战 - 完整示例代码</h1>
+        
+        <div class="section">
+            <h2>项目结构</h2>
+            <pre><code>mybatis-permission-system/
+├── pom.xml
+├── src/
+│   ├── main/
+│   │   ├── java/com/example/
+│   │   │   ├── pojo/
+│   │   │   │   ├── SysUser.java
+│   │   │   │   ├── SysRole.java
+│   │   │   │   └── SysPermission.java
+│   │   │   ├── mapper/
+│   │   │   │   ├── SysUserMapper.java
+│   │   │   │   ├── SysRoleMapper.java
+│   │   │   │   ├── SysPermissionMapper.java
+│   │   │   │   ├── SysUserRoleMapper.java
+│   │   │   │   └── SysRolePermissionMapper.java
+│   │   │   ├── provider/
+│   │   │   │   ├── SysUserSqlProvider.java
+│   │   │   │   ├── SysRoleSqlProvider.java
+│   │   │   │   └── SysPermissionSqlProvider.java
+│   │   │   └── service/
+│   │   │       ├── LoginService.java
+│   │   │       └── PermissionService.java
+│   │   └── resources/
+│   │       ├── mybatis-config.xml
+│   │       └── log4j.properties
+│   └── test/
+│       └── java/com/example/test/
+│           ├── BaseTest.java
+│           ├── SysUserMapperTest.java
+│           ├── SysRoleMapperTest.java
+│           └── SysPermissionMapperTest.java
+└── sql/
+    └── permission_schema.sql</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>1. 数据库脚本</h2>
+            <div class="file-header">sql/permission_schema.sql</div>
+            <pre class="file-content"><code>-- 创建数据库
+CREATE DATABASE IF NOT EXISTS mybatis_permission CHARACTER SET utf8mb4;
+USE mybatis_permission;
+
+-- 用户表
+DROP TABLE IF EXISTS sys_user;
+CREATE TABLE sys_user (
+    user_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '用户ID',
+    username VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
+    password VARCHAR(100) NOT NULL COMMENT '密码',
+    real_name VARCHAR(50) COMMENT '真实姓名',
+    email VARCHAR(100) COMMENT '邮箱',
+    phone VARCHAR(20) COMMENT '手机号',
+    status INT DEFAULT 1 COMMENT '状态：0-禁用，1-正常',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_username(username),
+    INDEX idx_status(status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+-- 角色表
+DROP TABLE IF EXISTS sys_role;
+CREATE TABLE sys_role (
+    role_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '角色ID',
+    role_name VARCHAR(50) NOT NULL UNIQUE COMMENT '角色名称',
+    role_desc VARCHAR(200) COMMENT '角色描述',
+    status INT DEFAULT 1 COMMENT '状态：0-禁用，1-正常',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_role_name(role_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
+
+-- 权限表（支持树形结构）
+DROP TABLE IF EXISTS sys_permission;
+CREATE TABLE sys_permission (
+    permission_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '权限ID',
+    parent_id INT DEFAULT 0 COMMENT '父权限ID（0表示根节点）',
+    permission_name VARCHAR(50) NOT NULL COMMENT '权限名称',
+    permission_code VARCHAR(100) NOT NULL COMMENT '权限代码',
+    permission_type INT COMMENT '权限类型：1-菜单，2-按钮，3-接口',
+    url VARCHAR(200) COMMENT 'URL地址',
+    icon VARCHAR(50) COMMENT '图标',
+    sort INT DEFAULT 0 COMMENT '排序',
+    status INT DEFAULT 1 COMMENT '状态：0-禁用，1-正常',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_parent_id(parent_id),
+    INDEX idx_code(permission_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='权限表';
+
+-- 用户-角色关联表（多对多）
+DROP TABLE IF EXISTS sys_user_role;
+CREATE TABLE sys_user_role (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL COMMENT '用户ID',
+    role_id INT NOT NULL COMMENT '角色ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_user_role (user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES sys_user(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES sys_role(role_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
+
+-- 角色-权限关联表（多对多）
+DROP TABLE IF EXISTS sys_role_permission;
+CREATE TABLE sys_role_permission (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    role_id INT NOT NULL COMMENT '角色ID',
+    permission_id INT NOT NULL COMMENT '权限ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_role_permission (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES sys_role(role_id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES sys_permission(permission_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限关联表';
+
+-- 插入测试数据
+INSERT INTO sys_user(username, password, real_name, email, phone) VALUES
+('admin', '123456', '管理员', 'admin@qq.com', '13800138000'),
+('zhangsan', '123456', '张三', 'zhangsan@qq.com', '13800138001'),
+('lisi', '123456', '李四', 'lisi@qq.com', '13800138002');
+
+INSERT INTO sys_role(role_name, role_desc) VALUES
+('超级管理员', '系统超级管理员，拥有所有权限'),
+('普通用户', '普通用户角色，拥有基本权限'),
+('VIP用户', 'VIP用户，拥有更多权限');
+
+INSERT INTO sys_permission(parent_id, permission_name, permission_code, permission_type, url, sort) VALUES
+(0, '系统管理', 'system', 1, '/system', 1),
+(1, '用户管理', 'system:user', 1, '/system/user', 2),
+(1, '角色管理', 'system:role', 1, '/system/role', 3),
+(1, '权限管理', 'system:permission', 1, '/system/permission', 4),
+(2, '用户查询', 'system:user:list', 3, '/api/user/list', 5),
+(2, '用户新增', 'system:user:add', 3, '/api/user/add', 6),
+(2, '用户修改', 'system:user:edit', 3, '/api/user/edit', 7),
+(2, '用户删除', 'system:user:delete', 3, '/api/user/delete', 8);
+
+-- 分配用户角色
+INSERT INTO sys_user_role(user_id, role_id) VALUES
+(1, 1), (1, 2), (1, 3),
+(2, 2),
+(3, 3);
+
+-- 分配角色权限
+INSERT INTO sys_role_permission(role_id, permission_id) VALUES
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8),
+(2, 5), (2, 6),
+(3, 5), (3, 6), (3, 7);
+
+-- 验证数据
+SELECT * FROM sys_user;
+SELECT * FROM sys_role;
+SELECT * FROM sys_permission;
+
+SELECT u.username, r.role_name 
+FROM sys_user u
+INNER JOIN sys_user_role ur ON u.user_id = ur.user_id
+INNER JOIN sys_role r ON ur.role_id = r.role_id;</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>2. 实体类</h2>
+            <div class="file-header">src/main/java/com/example/pojo/SysUser.java</div>
+            <pre class="file-content"><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.Date;
+import java.util.List;
+
+/**
+ * 用户实体类
+ */
+@Data
+public class SysUser {
+    private Integer userId;
+    private String username;
+    private String password;
+    private String realName;
+    private String email;
+    private String phone;
+    private Integer status;
+    private Date createTime;
+    private Date updateTime;
+    
+    // 关联属性：用户拥有的角色
+    private List&lt;SysRole&gt; roles;
+    
+    // 关联属性：用户拥有的权限（通过角色获取）
+    private List&lt;SysPermission&gt; permissions;
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/pojo/SysRole.java</div>
+            <pre class="file-content"><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.Date;
+import java.util.List;
+
+/**
+ * 角色实体类
+ */
+@Data
+public class SysRole {
+    private Integer roleId;
+    private String roleName;
+    private String roleDesc;
+    private Integer status;
+    private Date createTime;
+    
+    // 关联属性：角色下的用户
+    private List&lt;SysUser&gt; users;
+    
+    // 关联属性：角色拥有的权限
+    private List&lt;SysPermission&gt; permissions;
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/pojo/SysPermission.java</div>
+            <pre class="file-content"><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.Date;
+import java.util.List;
+
+/**
+ * 权限实体类
+ */
+@Data
+public class SysPermission {
+    private Integer permissionId;
+    private Integer parentId;
+    private String permissionName;
+    private String permissionCode;
+    private Integer permissionType;
+    private String url;
+    private String icon;
+    private Integer sort;
+    private Integer status;
+    private Date createTime;
+    
+    // 关联属性：子权限（树形结构）
+    private List&lt;SysPermission&gt; children;
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>3. Mapper接口 - SysUserMapper</h2>
+            <div class="file-header">src/main/java/com/example/mapper/SysUserMapper.java</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import com.example.pojo.SysUser;
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 用户Mapper接口
+ */
+public interface SysUserMapper {
+    
+    // ==================== 基本CRUD ====================
+    
+    /**
+     * 查询所有用户
+     */
+    @Select("SELECT * FROM sys_user WHERE status = 1")
+    @Results(id = "userResultMap", value = {
+        @Result(property = "userId", column = "user_id", id = true),
+        @Result(property = "username", column = "username"),
+        @Result(property = "password", column = "password"),
+        @Result(property = "realName", column = "real_name"),
+        @Result(property = "email", column = "email"),
+        @Result(property = "phone", column = "phone"),
+        @Result(property = "status", column = "status"),
+        @Result(property = "createTime", column = "create_time"),
+        @Result(property = "updateTime", column = "update_time")
+    })
+    List&lt;SysUser&gt; findAll();
+    
+    /**
+     * 根据ID查询用户
+     */
+    @Select("SELECT * FROM sys_user WHERE user_id = #{userId} AND status = 1")
+    @ResultMap("userResultMap")
+    SysUser findById(Integer userId);
+    
+    /**
+     * 根据用户名查询用户（用于登录）
+     */
+    @Select("SELECT * FROM sys_user WHERE username = #{username} AND status = 1")
+    @ResultMap("userResultMap")
+    SysUser findByUsername(String username);
+    
+    /**
+     * 插入用户
+     */
+    @Insert("INSERT INTO sys_user(username, password, real_name, email, phone, status) " +
+            "VALUES(#{username}, #{password}, #{realName}, #{email}, #{phone}, #{status})")
+    @Options(useGeneratedKeys = true, keyProperty = "userId")
+    int insert(SysUser user);
+    
+    /**
+     * 更新用户
+     */
+    @Update({
+        "&lt;script&gt;",
+        "UPDATE sys_user",
+        "&lt;set&gt;",
+        "&lt;if test='realName != null'&gt;real_name = #{realName},&lt;/if&gt;",
+        "&lt;if test='email != null'&gt;email = #{email},&lt;/if&gt;",
+        "&lt;if test='phone != null'&gt;phone = #{phone},&lt;/if&gt;",
+        "&lt;if test='status != null'&gt;status = #{status},&lt;/if&gt;",
+        "&lt;/set&gt;",
+        "WHERE user_id = #{userId}",
+        "&lt;/script&gt;"
+    })
+    int update(SysUser user);
+    
+    /**
+     * 更新密码
+     */
+    @Update("UPDATE sys_user SET password = #{password} WHERE user_id = #{userId}")
+    int updatePassword(@Param("userId") Integer userId, 
+                       @Param("password") String password);
+    
+    /**
+     * 删除用户（逻辑删除）
+     */
+    @Update("UPDATE sys_user SET status = 0 WHERE user_id = #{userId}")
+    int delete(Integer userId);
+    
+    // ==================== 多条件查询 ====================
+    
+    /**
+     * 多条件查询用户（使用Provider）
+     */
+    @SelectProvider(type = com.example.provider.SysUserSqlProvider.class, method = "findByCondition")
+    @ResultMap("userResultMap")
+    List&lt;SysUser&gt; findByCondition(Map&lt;String, Object&gt; params);
+    
+    /**
+     * 分页查询用户
+     */
+    @Select("SELECT * FROM sys_user WHERE status = 1 " +
+            "ORDER BY create_time DESC LIMIT #{offset}, #{limit}")
+    @ResultMap("userResultMap")
+    List&lt;SysUser&gt; findByPage(@Param("offset") Integer offset, 
+                               @Param("limit") Integer limit);
+    
+    /**
+     * 查询用户总数
+     */
+    @Select("SELECT COUNT(*) FROM sys_user WHERE status = 1")
+    int countTotal();
+    
+    // ==================== 关联查询 ====================
+    
+    /**
+     * 查询用户及其角色
+     */
+    @Select("SELECT * FROM sys_user WHERE user_id = #{userId} AND status = 1")
+    @Results({
+        @Result(property = "userId", column = "user_id", id = true),
+        @Result(property = "username", column = "username"),
+        @Result(property = "roles", column = "user_id",
+                many = @Many(select = "com.example.mapper.SysRoleMapper.findByUserId"))
+    })
+    SysUser findUserWithRoles(Integer userId);
+    
+    /**
+     * 查询用户及其权限（通过角色获取）
+     */
+    @Select("SELECT * FROM sys_user WHERE user_id = #{userId} AND status = 1")
+    @Results({
+        @Result(property = "userId", column = "user_id", id = true),
+        @Result(property = "permissions", column = "user_id",
+                many = @Many(select = "com.example.mapper.SysPermissionMapper.findByUserId"))
+    })
+    SysUser findUserWithPermissions(Integer userId);
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>4. Mapper接口 - SysRoleMapper</h2>
+            <div class="file-header">src/main/java/com/example/mapper/SysRoleMapper.java</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import com.example.pojo.SysRole;
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+
+/**
+ * 角色Mapper接口
+ */
+public interface SysRoleMapper {
+    
+    /**
+     * 查询所有角色
+     */
+    @Select("SELECT * FROM sys_role WHERE status = 1")
+    @Results(id = "roleResultMap", value = {
+        @Result(property = "roleId", column = "role_id", id = true),
+        @Result(property = "roleName", column = "role_name"),
+        @Result(property = "roleDesc", column = "role_desc"),
+        @Result(property = "status", column = "status"),
+        @Result(property = "createTime", column = "create_time")
+    })
+    List&lt;SysRole&gt; findAll();
+    
+    /**
+     * 根据ID查询角色
+     */
+    @Select("SELECT * FROM sys_role WHERE role_id = #{roleId} AND status = 1")
+    @ResultMap("roleResultMap")
+    SysRole findById(Integer roleId);
+    
+    /**
+     * 根据用户ID查询角色
+     */
+    @Select("SELECT r.* FROM sys_role r " +
+            "INNER JOIN sys_user_role ur ON r.role_id = ur.role_id " +
+            "WHERE ur.user_id = #{userId} AND r.status = 1")
+    @ResultMap("roleResultMap")
+    List&lt;SysRole&gt; findByUserId(Integer userId);
+    
+    /**
+     * 插入角色
+     */
+    @Insert("INSERT INTO sys_role(role_name, role_desc, status) " +
+            "VALUES(#{roleName}, #{roleDesc}, #{status})")
+    @Options(useGeneratedKeys = true, keyProperty = "roleId")
+    int insert(SysRole role);
+    
+    /**
+     * 更新角色
+     */
+    @Update({
+        "&lt;script&gt;",
+        "UPDATE sys_role",
+        "&lt;set&gt;",
+        "&lt;if test='roleName != null'&gt;role_name = #{roleName},&lt;/if&gt;",
+        "&lt;if test='roleDesc != null'&gt;role_desc = #{roleDesc},&lt;/if&gt;",
+        "&lt;if test='status != null'&gt;status = #{status},&lt;/if&gt;",
+        "&lt;/set&gt;",
+        "WHERE role_id = #{roleId}",
+        "&lt;/script&gt;"
+    })
+    int update(SysRole role);
+    
+    /**
+     * 删除角色（逻辑删除）
+     */
+    @Update("UPDATE sys_role SET status = 0 WHERE role_id = #{roleId}")
+    int delete(Integer roleId);
+    
+    /**
+     * 查询角色及其权限
+     */
+    @Select("SELECT * FROM sys_role WHERE role_id = #{roleId} AND status = 1")
+    @Results({
+        @Result(property = "roleId", column = "role_id", id = true),
+        @Result(property = "roleName", column = "role_name"),
+        @Result(property = "permissions", column = "role_id",
+                many = @Many(select = "com.example.mapper.SysPermissionMapper.findByRoleId"))
+    })
+    SysRole findRoleWithPermissions(Integer roleId);
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>5. Mapper接口 - SysPermissionMapper</h2>
+            <div class="file-header">src/main/java/com/example/mapper/SysPermissionMapper.java</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import com.example.pojo.SysPermission;
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+
+/**
+ * 权限Mapper接口
+ */
+public interface SysPermissionMapper {
+    
+    /**
+     * 查询所有权限
+     */
+    @Select("SELECT * FROM sys_permission WHERE status = 1 ORDER BY sort")
+    @Results(id = "permissionResultMap", value = {
+        @Result(property = "permissionId", column = "permission_id", id = true),
+        @Result(property = "parentId", column = "parent_id"),
+        @Result(property = "permissionName", column = "permission_name"),
+        @Result(property = "permissionCode", column = "permission_code"),
+        @Result(property = "permissionType", column = "permission_type"),
+        @Result(property = "url", column = "url"),
+        @Result(property = "icon", column = "icon"),
+        @Result(property = "sort", column = "sort"),
+        @Result(property = "status", column = "status"),
+        @Result(property = "createTime", column = "create_time")
+    })
+    List&lt;SysPermission&gt; findAll();
+    
+    /**
+     * 根据ID查询权限
+     */
+    @Select("SELECT * FROM sys_permission WHERE permission_id = #{permissionId} AND status = 1")
+    @ResultMap("permissionResultMap")
+    SysPermission findById(Integer permissionId);
+    
+    /**
+     * 根据父ID查询子权限
+     */
+    @Select("SELECT * FROM sys_permission WHERE parent_id = #{parentId} AND status = 1 ORDER BY sort")
+    @ResultMap("permissionResultMap")
+    List&lt;SysPermission&gt; findByParentId(Integer parentId);
+    
+    /**
+     * 根据用户ID查询权限（通过角色关联）
+     */
+    @Select("SELECT DISTINCT p.* FROM sys_permission p " +
+            "INNER JOIN sys_role_permission rp ON p.permission_id = rp.permission_id " +
+            "INNER JOIN sys_user_role ur ON rp.role_id = ur.role_id " +
+            "WHERE ur.user_id = #{userId} AND p.status = 1 " +
+            "ORDER BY p.sort")
+    @ResultMap("permissionResultMap")
+    List&lt;SysPermission&gt; findByUserId(Integer userId);
+    
+    /**
+     * 根据角色ID查询权限
+     */
+    @Select("SELECT p.* FROM sys_permission p " +
+            "INNER JOIN sys_role_permission rp ON p.permission_id = rp.permission_id " +
+            "WHERE rp.role_id = #{roleId} AND p.status = 1 " +
+            "ORDER BY p.sort")
+    @ResultMap("permissionResultMap")
+    List&lt;SysPermission&gt; findByRoleId(Integer roleId);
+    
+    /**
+     * 查询权限树（递归查询子权限）
+     */
+    @Select("SELECT * FROM sys_permission WHERE parent_id = 0 AND status = 1 ORDER BY sort")
+    @Results({
+        @Result(property = "permissionId", column = "permission_id", id = true),
+        @Result(property = "parentId", column = "parent_id"),
+        @Result(property = "permissionName", column = "permission_name"),
+        @Result(property = "children", column = "permission_id",
+                many = @Many(select = "com.example.mapper.SysPermissionMapper.findChildren"))
+    })
+    List&lt;SysPermission&gt; findPermissionTree();
+    
+    /**
+     * 递归查询子权限（内部调用）
+     */
+    @Select("SELECT * FROM sys_permission WHERE parent_id = #{permissionId} AND status = 1 ORDER BY sort")
+    @Results({
+        @Result(property = "permissionId", column = "permission_id", id = true),
+        @Result(property = "parentId", column = "parent_id"),
+        @Result(property = "permissionName", column = "permission_name"),
+        @Result(property = "children", column = "permission_id",
+                many = @Many(select = "com.example.mapper.SysPermissionMapper.findChildren"))
+    })
+    List&lt;SysPermission&gt; findChildren(Integer permissionId);
+    
+    /**
+     * 插入权限
+     */
+    @Insert("INSERT INTO sys_permission(parent_id, permission_name, permission_code, " +
+            "permission_type, url, icon, sort, status) " +
+            "VALUES(#{parentId}, #{permissionName}, #{permissionCode}, " +
+            "#{permissionType}, #{url}, #{icon}, #{sort}, #{status})")
+    @Options(useGeneratedKeys = true, keyProperty = "permissionId")
+    int insert(SysPermission permission);
+    
+    /**
+     * 更新权限
+     */
+    @Update({
+        "&lt;script&gt;",
+        "UPDATE sys_permission",
+        "&lt;set&gt;",
+        "&lt;if test='parentId != null'&gt;parent_id = #{parentId},&lt;/if&gt;",
+        "&lt;if test='permissionName != null'&gt;permission_name = #{permissionName},&lt;/if&gt;",
+        "&lt;if test='permissionCode != null'&gt;permission_code = #{permissionCode},&lt;/if&gt;",
+        "&lt;if test='permissionType != null'&gt;permission_type = #{permissionType},&lt;/if&gt;",
+        "&lt;if test='url != null'&gt;url = #{url},&lt;/if&gt;",
+        "&lt;if test='icon != null'&gt;icon = #{icon},&lt;/if&gt;",
+        "&lt;if test='sort != null'&gt;sort = #{sort},&lt;/if&gt;",
+        "&lt;if test='status != null'&gt;status = #{status},&lt;/if&gt;",
+        "&lt;/set&gt;",
+        "WHERE permission_id = #{permissionId}",
+        "&lt;/script&gt;"
+    })
+    int update(SysPermission permission);
+    
+    /**
+     * 删除权限（逻辑删除）
+     */
+    @Update("UPDATE sys_permission SET status = 0 WHERE permission_id = #{permissionId}")
+    int delete(Integer permissionId);
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>6. 关联Mapper接口</h2>
+            <div class="file-header">src/main/java/com/example/mapper/SysUserRoleMapper.java</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+
+/**
+ * 用户角色关联Mapper接口
+ */
+public interface SysUserRoleMapper {
+    
+    /**
+     * 为用户分配角色
+     */
+    @Insert("INSERT INTO sys_user_role(user_id, role_id) VALUES(#{userId}, #{roleId})")
+    int insert(@Param("userId") Integer userId, @Param("roleId") Integer roleId);
+    
+    /**
+     * 删除用户的角色
+     */
+    @Delete("DELETE FROM sys_user_role WHERE user_id = #{userId} AND role_id = #{roleId}")
+    int delete(@Param("userId") Integer userId, @Param("roleId") Integer roleId);
+    
+    /**
+     * 删除用户的所有角色
+     */
+    @Delete("DELETE FROM sys_user_role WHERE user_id = #{userId}")
+    int deleteByUserId(Integer userId);
+    
+    /**
+     * 查询用户的角色ID列表
+     */
+    @Select("SELECT role_id FROM sys_user_role WHERE user_id = #{userId}")
+    List&lt;Integer&gt; findRoleIdsByUserId(Integer userId);
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/mapper/SysRolePermissionMapper.java</div>
+            <pre class="file-content"><code>package com.example.mapper;
+
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+
+/**
+ * 角色权限关联Mapper接口
+ */
+public interface SysRolePermissionMapper {
+    
+    /**
+     * 为角色分配权限
+     */
+    @Insert("INSERT INTO sys_role_permission(role_id, permission_id) " +
+            "VALUES(#{roleId}, #{permissionId})")
+    int insert(@Param("roleId") Integer roleId, @Param("permissionId") Integer permissionId);
+    
+    /**
+     * 删除角色的权限
+     */
+    @Delete("DELETE FROM sys_role_permission WHERE role_id = #{roleId} AND permission_id = #{permissionId}")
+    int delete(@Param("roleId") Integer roleId, @Param("permissionId") Integer permissionId);
+    
+    /**
+     * 删除角色的所有权限
+     */
+    @Delete("DELETE FROM sys_role_permission WHERE role_id = #{roleId}")
+    int deleteByRoleId(Integer roleId);
+    
+    /**
+     * 查询角色的权限ID列表
+     */
+    @Select("SELECT permission_id FROM sys_role_permission WHERE role_id = #{roleId}")
+    List&lt;Integer&gt; findPermissionIdsByRoleId(Integer roleId);
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>7. SQL Provider类</h2>
+            <div class="file-header">src/main/java/com/example/provider/SysUserSqlProvider.java</div>
+            <pre class="file-content"><code>package com.example.provider;
+
+import java.util.Map;
+
+/**
+ * 用户SQL Provider类
+ */
+public class SysUserSqlProvider {
+    
+    /**
+     * 动态查询用户
+     */
+    public String findByCondition(Map&lt;String, Object&gt; params) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT * FROM sys_user WHERE status = 1 ");
+        
+        if (params.get("username") != null) {
+            sql.append("AND username LIKE CONCAT('%', #{username}, '%') ");
+        }
+        if (params.get("realName") != null) {
+            sql.append("AND real_name LIKE CONCAT('%', #{realName}, '%') ");
+        }
+        if (params.get("email") != null) {
+            sql.append("AND email = #{email} ");
+        }
+        if (params.get("phone") != null) {
+            sql.append("AND phone LIKE CONCAT('%', #{phone}, '%') ");
+        }
+        if (params.get("startTime") != null) {
+            sql.append("AND create_time &gt;= #{startTime} ");
+        }
+        if (params.get("endTime") != null) {
+            sql.append("AND create_time &lt;= #{endTime} ");
+        }
+        
+        sql.append("ORDER BY create_time DESC");
+        return sql.toString();
+    }
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>8. 服务类</h2>
+            <div class="file-header">src/main/java/com/example/service/LoginService.java</div>
+            <pre class="file-content"><code>package com.example.service;
+
+import com.example.mapper.SysUserMapper;
+import com.example.pojo.SysUser;
+import org.apache.ibatis.io.Resources;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import java.io.InputStream;
+
+/**
+ * 登录服务类
+ */
+public class LoginService {
+    
+    /**
+     * 用户登录验证
+     * @param username 用户名
+     * @param password 密码
+     * @return 登录成功返回用户对象，失败返回null
+     */
+    public SysUser login(String username, String password) {
+        try {
+            // 1. 读取配置文件
+            String resource = "mybatis-config.xml";
+            InputStream inputStream = Resources.getResourceAsStream(resource);
+            
+            // 2. 创建SqlSessionFactory
+            SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+            
+            // 3. 创建SqlSession
+            try (SqlSession session = sqlSessionFactory.openSession()) {
+                // 4. 获取Mapper接口
+                SysUserMapper mapper = session.getMapper(SysUserMapper.class);
+                
+                // 5. 根据用户名查询用户
+                SysUser user = mapper.findByUsername(username);
+                
+                // 6. 验证密码
+                if (user != null &amp;&amp; password.equals(user.getPassword())) {
+                    return user;
+                }
+                
+                return null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}</code></pre>
+
+            <div class="file-header">src/main/java/com/example/service/PermissionService.java</div>
+            <pre class="file-content"><code>package com.example.service;
+
+import com.example.mapper.SysUserMapper;
+import com.example.pojo.SysUser;
+import java.util.List;
+import java.util.stream.Collectors;
+
+/**
+ * 权限服务类
+ */
+public class PermissionService {
+    
+    private SysUserMapper userMapper;
+    
+    /**
+     * 检查用户是否拥有某个权限
+     * @param userId 用户ID
+     * @param permissionCode 权限代码
+     * @return 是否拥有权限
+     */
+    public boolean hasPermission(Integer userId, String permissionCode) {
+        SysUser user = userMapper.findUserWithPermissions(userId);
+        
+        if (user == null || user.getPermissions() == null) {
+            return false;
+        }
+        
+        return user.getPermissions().stream()
+                .anyMatch(p -&gt; permissionCode.equals(p.getPermissionCode()));
+    }
+    
+    /**
+     * 获取用户的所有权限代码
+     * @param userId 用户ID
+     * @return 权限代码列表
+     */
+    public List&lt;String&gt; getUserPermissionCodes(Integer userId) {
+        SysUser user = userMapper.findUserWithPermissions(userId);
+        
+        if (user == null || user.getPermissions() == null) {
+            return List.of();
+        }
+        
+        return user.getPermissions().stream()
+                .map(p -&gt; p.getPermissionCode())
+                .collect(Collectors.toList());
+    }
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>9. 测试类</h2>
+            <div class="file-header">src/test/java/com/example/test/SysUserMapperTest.java</div>
+            <pre class="file-content"><code>package com.example.test;
+
+import com.example.mapper.SysUserMapper;
+import com.example.pojo.SysUser;
+import org.apache.ibatis.session.SqlSession;
+import org.junit.Test;
+import java.util.*;
+
+/**
+ * 用户Mapper测试类
+ */
+public class SysUserMapperTest extends BaseTest {
+    
+    /**
+     * 测试查询所有用户
+     */
+    @Test
+    public void testFindAll() {
+        SysUserMapper mapper = sqlSession.getMapper(SysUserMapper.class);
+        List&lt;SysUser&gt; users = mapper.findAll();
+        
+        System.out.println("用户总数：" + users.size());
+        for (SysUser user : users) {
+            System.out.println("用户名：" + user.getUsername() + "，真实姓名：" + user.getRealName());
+        }
+        
+        assert users.size() &gt; 0;
+    }
+    
+    /**
+     * 测试插入用户
+     */
+    @Test
+    public void testInsert() {
+        SysUserMapper mapper = sqlSession.getMapper(SysUserMapper.class);
+        
+        SysUser user = new SysUser();
+        user.setUsername("testuser");
+        user.setPassword("123456");
+        user.setRealName("测试用户");
+        user.setEmail("test@example.com");
+        user.setPhone("13900139000");
+        user.setStatus(1);
+        
+        int rows = mapper.insert(user);
+        
+        System.out.println("插入成功，用户ID：" + user.getUserId());
+        assert rows == 1;
+        assert user.getUserId() != null;
+    }
+    
+    /**
+     * 测试查询用户及其角色
+     */
+    @Test
+    public void testFindUserWithRoles() {
+        SysUserMapper mapper = sqlSession.getMapper(SysUserMapper.class);
+        
+        SysUser user = mapper.findUserWithRoles(1);
+        
+        System.out.println("用户：" + user.getUsername());
+        System.out.println("角色数：" + user.getRoles().size());
+        
+        for (SysRole role : user.getRoles()) {
+            System.out.println("  角色：" + role.getRoleName());
+        }
+        
+        assert user.getRoles().size() &gt; 0;
+    }
+    
+    /**
+     * 测试查询用户及其权限
+     */
+    @Test
+    public void testFindUserWithPermissions() {
+        SysUserMapper mapper = sqlSession.getMapper(SysUserMapper.class);
+        
+        SysUser user = mapper.findUserWithPermissions(1);
+        
+        System.out.println("用户：" + user.getUsername());
+        System.out.println("权限数：" + user.getPermissions().size());
+        
+        for (SysPermission permission : user.getPermissions()) {
+            System.out.println("  权限：" + permission.getPermissionName());
+        }
+        
+        assert user.getPermissions().size() &gt; 0;
+    }
+}</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>10. 运行说明</h2>
+            <div class="note">
+                <h3>编译项目</h3>
+                <pre><code>cd mybatis-permission-system
+mvn clean compile</code></pre>
+                
+                <h3>运行所有测试</h3>
+                <pre><code>mvn test</code></pre>
+                
+                <h3>运行单个测试类</h3>
+                <pre><code>mvn test -Dtest=SysUserMapperTest</code></pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>11. 任务完成总结</h2>
+            <div class="note">
+                <h3>✅ 已完成的功能</h3>
+                <ul>
+                    <li>用户管理（CRUD、多条件查询、分页）</li>
+                    <li>角色管理（CRUD、关联用户）</li>
+                    <li>权限管理（CRUD、树形结构）</li>
+                    <li>用户-角色关联（多对多）</li>
+                    <li>角色-权限关联（多对多）</li>
+                    <li>登录验证和权限检查</li>
+                </ul>
+                
+                <h3>📝 扩展建议</h3>
+                <ul>
+                    <li>添加登录日志表，记录用户登录信息</li>
+                    <li>实现记住我功能（Remember Me）</li>
+                    <li>集成Spring Security或Shiro</li>
+                    <li>实现数据导出功能（Excel导出）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

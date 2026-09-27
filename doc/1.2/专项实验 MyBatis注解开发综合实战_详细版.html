@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专项实验 MyBatis注解开发综合实战 - 操作手册</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; line-height: 1.8; color: #333; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 15px; margin-bottom: 30px; font-size: 28px; }
+        h2 { color: #2980b9; margin: 35px 0 20px 0; padding-left: 15px; border-left: 4px solid #3498db; font-size: 22px; }
+        h3 { color: #27ae60; margin: 25px 0 15px 0; font-size: 18px; }
+        .note { background: #e8f4f8; border-left: 4px solid #3498db; padding: 15px 20px; margin: 20px 0; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px 20px; margin: 20px 0; }
+        .tip { background: #d4edda; border-left: 4px solid #28a745; padding: 15px 20px; margin: 20px 0; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 5px; overflow-x: auto; margin: 15px 0; }
+        code { font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #3498db; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .section { margin-bottom: 40px; }
+        .step { background: #fff; border: 2px solid #3498db; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .step-title { color: #3498db; font-weight: bold; font-size: 16px; margin-bottom: 10px; }
+        .checklist { list-style-type: none; padding-left: 0; }
+        .checklist li { padding: 5px 0; }
+        .checklist li:before { content: "□ "; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>专项实验：MyBatis注解开发综合实战 - 操作手册</h1>
+        
+        <div class="section">
+            <h2>实验概述</h2>
+            
+            <div class="step">
+                <div class="step-title">实验目标</div>
+                <p>通过完成一个完整的用户-角色-权限管理系统，综合运用MyBatis注解开发的各项技术：</p>
+                <ul>
+                    <li>用户管理（CRUD、多条件查询、分页）</li>
+                    <li>角色管理（CRUD、关联用户）</li>
+                    <li>权限管理（CRUD、树形结构）</li>
+                    <li>用户-角色关联（多对多）</li>
+                    <li>角色-权限关联（多对多）</li>
+                    <li>登录验证和权限检查</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <div class="step-title">实验环境检查</div>
+                <p>在开始实验前，请确保：</p>
+                <ul class="checklist">
+                    <li>JDK 8或以上已安装</li>
+                    <li>Maven 3.6或以上已安装</li>
+                    <li>MySQL 8.0或以上已安装</li>
+                    <li>IDE（IntelliJ IDEA或Eclipse）已安装</li>
+                    <li>已学完前3节内容</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>实验1：数据库设计与创建</h2>
+            
+            <div class="step">
+                <div class="step-title">步骤1：创建数据库和表</div>
+                <p><strong>操作1：登录MySQL并创建数据库</strong></p>
+                <pre><code>mysql -u root -p
+
+CREATE DATABASE mybatis_permission CHARACTER SET utf8mb4;
+USE mybatis_permission;</code></pre>
+                
+                <p><strong>操作2：执行建表SQL</strong></p>
+                <p>将以下SQL保存为 <code>permission_schema.sql</code>，然后在MySQL中执行：</p>
+                <pre><code>-- 用户表
+CREATE TABLE sys_user (
+    user_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '用户ID',
+    username VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
+    password VARCHAR(100) NOT NULL COMMENT '密码',
+    real_name VARCHAR(50) COMMENT '真实姓名',
+    email VARCHAR(100) COMMENT '邮箱',
+    phone VARCHAR(20) COMMENT '手机号',
+    status INT DEFAULT 1 COMMENT '状态：0-禁用，1-正常',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_username(username),
+    INDEX idx_status(status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+-- 角色表
+CREATE TABLE sys_role (
+    role_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '角色ID',
+    role_name VARCHAR(50) NOT NULL UNIQUE COMMENT '角色名称',
+    role_desc VARCHAR(200) COMMENT '角色描述',
+    status INT DEFAULT 1 COMMENT '状态：0-禁用，1-正常',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_role_name(role_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
+
+-- 权限表（支持树形结构）
+CREATE TABLE sys_permission (
+    permission_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '权限ID',
+    parent_id INT DEFAULT 0 COMMENT '父权限ID（0表示根节点）',
+    permission_name VARCHAR(50) NOT NULL COMMENT '权限名称',
+    permission_code VARCHAR(100) NOT NULL COMMENT '权限代码',
+    permission_type INT COMMENT '权限类型：1-菜单，2-按钮，3-接口',
+    url VARCHAR(200) COMMENT 'URL地址',
+    icon VARCHAR(50) COMMENT '图标',
+    sort INT DEFAULT 0 COMMENT '排序',
+    status INT DEFAULT 1 COMMENT '状态：0-禁用，1-正常',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_parent_id(parent_id),
+    INDEX idx_code(permission_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='权限表';
+
+-- 用户-角色关联表（多对多）
+CREATE TABLE sys_user_role (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL COMMENT '用户ID',
+    role_id INT NOT NULL COMMENT '角色ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_user_role (user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES sys_user(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES sys_role(role_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
+
+-- 角色-权限关联表（多对多）
+CREATE TABLE sys_role_permission (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    role_id INT NOT NULL COMMENT '角色ID',
+    permission_id INT NOT NULL COMMENT '权限ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_role_permission (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES sys_role(role_id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES sys_permission(permission_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限关联表';</code></pre>
+
+                <p><strong>操作3：插入测试数据</strong></p>
+                <pre><code>-- 插入用户数据
+INSERT INTO sys_user(username, password, real_name, email, phone) VALUES
+('admin', '123456', '管理员', 'admin@qq.com', '13800138000'),
+('zhangsan', '123456', '张三', 'zhangsan@qq.com', '13800138001'),
+('lisi', '123456', '李四', 'lisi@qq.com', '13800138002');
+
+-- 插入角色数据
+INSERT INTO sys_role(role_name, role_desc) VALUES
+('超级管理员', '系统超级管理员，拥有所有权限'),
+('普通用户', '普通用户角色，拥有基本权限'),
+('VIP用户', 'VIP用户，拥有更多权限');
+
+-- 插入权限数据
+INSERT INTO sys_permission(parent_id, permission_name, permission_code, permission_type, url, sort) VALUES
+(0, '系统管理', 'system', 1, '/system', 1),
+(1, '用户管理', 'system:user', 1, '/system/user', 2),
+(1, '角色管理', 'system:role', 1, '/system/role', 3),
+(1, '权限管理', 'system:permission', 1, '/system/permission', 4),
+(2, '用户查询', 'system:user:list', 3, '/api/user/list', 5),
+(2, '用户新增', 'system:user:add', 3, '/api/user/add', 6),
+(2, '用户修改', 'system:user:edit', 3, '/api/user/edit', 7),
+(2, '用户删除', 'system:user:delete', 3, '/api/user/delete', 8);
+
+-- 分配用户角色
+INSERT INTO sys_user_role(user_id, role_id) VALUES
+(1, 1), (1, 2), (1, 3),
+(2, 2),
+(3, 3);
+
+-- 分配角色权限
+INSERT INTO sys_role_permission(role_id, permission_id) VALUES
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8),
+(2, 5), (2, 6),
+(3, 5), (3, 6), (3, 7);</code></pre>
+
+                <p><strong>操作4：验证数据</strong></p>
+                <pre><code>-- 验证用户表
+SELECT * FROM sys_user;
+
+-- 验证角色表
+SELECT * FROM sys_role;
+
+-- 验证权限表
+SELECT * FROM sys_permission;
+
+-- 验证关联表
+SELECT u.username, r.role_name 
+FROM sys_user u
+INNER JOIN sys_user_role ur ON u.user_id = ur.user_id
+INNER JOIN sys_role r ON ur.role_id = r.role_id;</code></pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>实验2：项目搭建与配置</h2>
+            
+            <div class="step">
+                <div class="step-title">步骤1：创建Maven项目</div>
+                <p><strong>方式1：使用Maven命令</strong></p>
+                <pre><code>mvn archetype:generate -DgroupId=com.example -DartifactId=mybatis-permission -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false</code></pre>
+                
+                <p><strong>方式2：使用IDE创建</strong></p>
+                <ol>
+                    <li>打开IntelliJ IDEA</li>
+                    <li>选择 File → New → Project</li>
+                    <li>选择 Maven → Create from archetype → maven-archetype-quickstart</li>
+                    <li>填写 GroupId: com.example, ArtifactId: mybatis-permission</li>
+                    <li>点击 Finish</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-title">步骤2：配置pom.xml</div>
+                <p>打开项目根目录的 <code>pom.xml</code>，添加以下依赖：</p>
+                <pre><code>&lt;dependencies&gt;
+    &lt;!-- MyBatis --&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.mybatis&lt;/groupId&gt;
+        &lt;artifactId&gt;mybatis&lt;/artifactId&gt;
+        &lt;version&gt;3.5.13&lt;/version&gt;
+    &lt;/dependency&gt;
+    
+    &lt;!-- MySQL驱动 --&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;com.mysql&lt;/groupId&gt;
+        &lt;artifactId&gt;mysql-connector-j&lt;/artifactId&gt;
+        &lt;version&gt;8.0.33&lt;/version&gt;
+    &lt;/dependency&gt;
+    
+    &lt;!-- Lombok --&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.projectlombok&lt;/groupId&gt;
+        &lt;artifactId&gt;lombok&lt;/artifactId&gt;
+        &lt;version&gt;1.18.30&lt;/version&gt;
+        &lt;scope&gt;provided&lt;/scope&gt;
+    &lt;/dependency&gt;
+    
+    &lt;!-- JUnit --&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;junit&lt;/groupId&gt;
+        &lt;artifactId&gt;junit&lt;/artifactId&gt;
+        &lt;version&gt;4.13.2&lt;/version&gt;
+        &lt;scope&gt;test&lt;/scope&gt;
+    &lt;/dependency&gt;
+    
+    &lt;!-- 日志 --&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;log4j&lt;/groupId&gt;
+        &lt;artifactId&gt;log4j&lt;/artifactId&gt;
+        &lt;version&gt;1.2.17&lt;/version&gt;
+    &lt;/dependency&gt;
+&lt;/dependencies&gt;</code></pre>
+            </div>
+
+            <div class="step">
+                <div class="step-title">步骤3：创建项目结构</div>
+                <p>在 <code>src/main/java</code> 下创建以下包：</p>
+                <pre><code>src/main/java
+└── com
+    └── example
+        ├── pojo          # 实体类
+        │   ├── SysUser.java
+        │   ├── SysRole.java
+        │   └── SysPermission.java
+        ├── mapper        # Mapper接口
+        │   ├── SysUserMapper.java
+        │   ├── SysRoleMapper.java
+        │   ├── SysPermissionMapper.java
+        │   ├── SysUserRoleMapper.java
+        │   └── SysRolePermissionMapper.java
+        └── provider     # SQL Provider类
+            ├── SysUserSqlProvider.java
+            ├── SysRoleSqlProvider.java
+            └── SysPermissionSqlProvider.java
+
+src/main/resources
+├── mybatis-config.xml  # MyBatis核心配置文件
+└── log4j.properties   # 日志配置
+
+src/test/java
+└── com
+    └── example
+        └── test        # 单元测试类
+            ├── BaseTest.java
+            ├── SysUserMapperTest.java
+            ├── SysRoleMapperTest.java
+            └── SysPermissionMapperTest.java</code></pre>
+            </div>
+
+            <div class="step">
+                <div class="step-title">步骤4：配置MyBatis</div>
+                <p>在 <code>src/main/resources</code> 下创建 <code>mybatis-config.xml</code>：</p>
+                <pre><code>&lt;?xml version="1.0" encoding="UTF-8" ?&gt;
+&lt;!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd"&gt;
+&lt;configuration&gt;
+    &lt;settings&gt;
+        &lt;!-- 开启驼峰命名自动映射 --&gt;
+        &lt;setting name="mapUnderscoreToCamelCase" value="true"/&gt;
+        
+        &lt;!-- 开启延迟加载 --&gt;
+        &lt;setting name="lazyLoadingEnabled" value="true"/&gt;
+        
+        &lt;!-- 关闭积极加载 --&gt;
+        &lt;setting name="aggressiveLazyLoading" value="false"/&gt;
+        
+        &lt;!-- 打印SQL日志 --&gt;
+        &lt;setting name="logImpl" value="STDOUT_LOGGING"/&gt;
+    &lt;/settings&gt;
+    
+    &lt;typeAliases&gt;
+        &lt;package name="com.example.pojo"/&gt;
+    &lt;/typeAliases&gt;
+    
+    &lt;environments default="development"&gt;
+        &lt;environment id="development"&gt;
+            &lt;transactionManager type="JDBC"/&gt;
+            &lt;dataSource type="POOLED"&gt;
+                &lt;property name="driver" value="com.mysql.cj.jdbc.Driver"/&gt;
+                &lt;property name="url" value="jdbc:mysql://localhost:3306/mybatis_permission?useSSL=false&amp;amp;serverTimezone=UTC&amp;amp;characterEncoding=utf8"/&gt;
+                &lt;property name="username" value="root"/&gt;
+                &lt;property name="password" value="123456"/&gt;
+            &lt;/dataSource&gt;
+        &lt;/environment&gt;
+    &lt;/environments&gt;
+    
+    &lt;mappers&gt;
+        &lt;package name="com.example.mapper"/&gt;
+    &lt;/mappers&gt;
+&lt;/configuration&gt;</code></pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>实验3：实体类与Mapper接口开发</h2>
+            
+            <div class="step">
+                <div class="step-title">步骤1：创建实体类</div>
+                <p><strong>SysUser.java：</strong></p>
+                <pre><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.Date;
+import java.util.List;
+
+@Data
+public class SysUser {
+    private Integer userId;
+    private String username;
+    private String password;
+    private String realName;
+    private String email;
+    private String phone;
+    private Integer status;
+    private Date createTime;
+    private Date updateTime;
+    
+    // 关联属性
+    private List&lt;SysRole&gt; roles;
+    private List&lt;SysPermission&gt; permissions;
+}</code></pre>
+                
+                <p><strong>SysRole.java：</strong></p>
+                <pre><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.Date;
+import java.util.List;
+
+@Data
+public class SysRole {
+    private Integer roleId;
+    private String roleName;
+    private String roleDesc;
+    private Integer status;
+    private Date createTime;
+    
+    // 关联属性
+    private List&lt;SysUser&gt; users;
+    private List&lt;SysPermission&gt; permissions;
+}</code></pre>
+                
+                <p><strong>SysPermission.java：</strong></p>
+                <pre><code>package com.example.pojo;
+
+import lombok.Data;
+import java.util.Date;
+import java.util.List;
+
+@Data
+public class SysPermission {
+    private Integer permissionId;
+    private Integer parentId;
+    private String permissionName;
+    private String permissionCode;
+    private Integer permissionType;
+    private String url;
+    private String icon;
+    private Integer sort;
+    private Integer status;
+    private Date createTime;
+    
+    // 关联属性（树形结构）
+    private List&lt;SysPermission&gt; children;
+}</code></pre>
+            </div>
+
+            <div class="step">
+                <div class="step-title">步骤2：创建SysUserMapper接口</div>
+                <p>在 <code>com.example.mapper</code> 包下创建 <code>SysUserMapper.java</code>：</p>
+                <pre><code>package com.example.mapper;
+
+import com.example.pojo.SysUser;
+import org.apache.ibatis.annotations.*;
+import java.util.List;
+import java.util.Map;
+
+public interface SysUserMapper {
+    
+    /**
+     * 查询所有用户
+     */
+    @Select("SELECT * FROM sys_user WHERE status = 1")
+    @Results(id = "userResultMap", value = {
+        @Result(property = "userId", column = "user_id", id = true),
+        @Result(property = "username", column = "username"),
+        @Result(property = "password", column = "password"),
+        @Result(property = "realName", column = "real_name"),
+        @Result(property = "email", column = "email"),
+        @Result(property = "phone", column = "phone"),
+        @Result(property = "status", column = "status"),
+        @Result(property = "createTime", column = "create_time"),
+        @Result(property = "updateTime", column = "update_time")
+    })
+    List&lt;SysUser&gt; findAll();
+    
+    /**
+     * 根据ID查询用户
+     */
+    @Select("SELECT * FROM sys_user WHERE user_id = #{userId} AND status = 1")
+    @ResultMap("userResultMap")
+    SysUser findById(Integer userId);
+    
+    /**
+     * 根据用户名查询用户（用于登录）
+     */
+    @Select("SELECT * FROM sys_user WHERE username = #{username} AND status = 1")
+    @ResultMap("userResultMap")
+    SysUser findByUsername(String username);
+    
+    /**
+     * 插入用户
+     */
+    @Insert("INSERT INTO sys_user(username, password, real_name, email, phone, status) " +
+            "VALUES(#{username}, #{password}, #{realName}, #{email}, #{phone}, #{status})")
+    @Options(useGeneratedKeys = true, keyProperty = "userId")
+    int insert(SysUser user);
+    
+    /**
+     * 更新用户
+     */
+    @Update({
+        "&lt;script&gt;",
+        "UPDATE sys_user",
+        "&lt;set&gt;",
+        "&lt;if test='realName != null'&gt;real_name = #{realName},&lt;/if&gt;",
+        "&lt;if test='email != null'&gt;email = #{email},&lt;/if&gt;",
+        "&lt;if test='phone != null'&gt;phone = #{phone},&lt;/if&gt;",
+        "&lt;if test='status != null'&gt;status = #{status},&lt;/if&gt;",
+        "&lt;/set&gt;",
+        "WHERE user_id = #{userId}",
+        "&lt;/script&gt;"
+    })
+    int update(SysUser user);
+    
+    /**
+     * 删除用户（逻辑删除）
+     */
+    @Update("UPDATE sys_user SET status = 0 WHERE user_id = #{userId}")
+    int delete(Integer userId);
+    
+    /**
+     * 多条件查询用户（使用Provider）
+     */
+    @SelectProvider(type = com.example.provider.SysUserSqlProvider.class, method = "findByCondition")
+    @ResultMap("userResultMap")
+    List&lt;SysUser&gt; findByCondition(Map&lt;String, Object&gt; params);
+    
+    /**
+     * 分页查询用户
+     */
+    @Select("SELECT * FROM sys_user WHERE status = 1 " +
+            "ORDER BY create_time DESC LIMIT #{offset}, #{limit}")
+    @ResultMap("userResultMap")
+    List&lt;SysUser&gt; findByPage(@Param("offset") Integer offset, 
+                               @Param("limit") Integer limit);
+    
+    /**
+     * 查询用户总数
+     */
+    @Select("SELECT COUNT(*) FROM sys_user WHERE status = 1")
+    int countTotal();
+    
+    /**
+     * 查询用户及其角色
+     */
+    @Select("SELECT * FROM sys_user WHERE user_id = #{userId} AND status = 1")
+    @Results({
+        @Result(property = "userId", column = "user_id", id = true),
+        @Result(property = "username", column = "username"),
+        @Result(property = "roles", column = "user_id",
+                many = @Many(select = "com.example.mapper.SysRoleMapper.findByUserId"))
+    })
+    SysUser findUserWithRoles(Integer userId);
+    
+    /**
+     * 查询用户及其权限
+     */
+    @Select("SELECT * FROM sys_user WHERE user_id = #{userId} AND status = 1")
+    @Results({
+        @Result(property = "userId", column = "user_id", id = true),
+        @Result(property = "permissions", column = "user_id",
+                many = @Many(select = "com.example.mapper.SysPermissionMapper.findByUserId"))
+    })
+    SysUser findUserWithPermissions(Integer userId);
+}</code></pre>
+            </div>
+
+            <div class="step">
+                <div class="step-title">步骤3：创建SQL Provider类</div>
+                <p>在 <code>com.example.provider</code> 包下创建 <code>SysUserSqlProvider.java</code>：</p>
+                <pre><code>package com.example.provider;
+
+import java.util.Map;
+
+public class SysUserSqlProvider {
+    
+    /**
+     * 动态查询用户
+     */
+    public String findByCondition(Map&lt;String, Object&gt; params) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT * FROM sys_user WHERE status = 1 ");
+        
+        if (params.get("username") != null) {
+            sql.append("AND username LIKE CONCAT('%', #{username}, '%') ");
+        }
+        if (params.get("realName") != null) {
+            sql.append("AND real_name LIKE CONCAT('%', #{realName}, '%') ");
+        }
+        if (params.get("email") != null) {
+            sql.append("AND email = #{email} ");
+        }
+        if (params.get("phone") != null) {
+            sql.append("AND phone LIKE CONCAT('%', #{phone}, '%') ");
+        }
+        if (params.get("startTime") != null) {
+            sql.append("AND create_time &gt;= #{startTime} ");
+        }
+        if (params.get("endTime") != null) {
+            sql.append("AND create_time &lt;= #{endTime} ");
+        }
+        
+        sql.append("ORDER BY create_time DESC");
+        return sql.toString();
+    }
+}</code></pre>
+            </div>
+
+            <div class="step">
+                <div class="step-title">步骤4：创建其他Mapper接口</div>
+                <div class="note">
+                    <p><strong>提示：</strong></p>
+                    <p>参照SysUserMapper的创建方式，创建以下Mapper接口：</p>
+                    <ul>
+                        <li>SysRoleMapper.java - 角色管理</li>
+                        <li>SysPermissionMapper.java - 权限管理（包含树形结构查询）</li>
+                        <li>SysUserRoleMapper.java - 用户角色关联</li>
+                        <li>SysRolePermissionMapper.java - 角色权限关联</li>
+                    </ul>
+                    <p>具体代码请参考"知识点"目录下的详细版文档。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>实验4：测试与验证</h2>
+            
+            <div class="step">
+                <div class="step-title">步骤1：创建测试基类</div>
+                <p>在 <code>src/test/java/com/example/test</code> 下创建 <code>BaseTest.java</code>：</p>
+                <pre><code>package com.example.test;
+
+import org.apache.ibatis.io.Resources;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import org.junit.After;
+import org.junit.Before;
+import java.io.InputStream;
+
+public class BaseTest {
+    protected SqlSession sqlSession;
+    
+    @Before
+    public void setUp() throws Exception {
+        String resource = "mybatis-config.xml";
+        InputStream inputStream = Resources.getResourceAsStream(resource);
+        SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+        sqlSession = sqlSessionFactory.openSession(true); // 自动提交
+    }
+    
+    @After
+    public void tearDown() {
+        if (sqlSession != null) {
+            sqlSession.close();
+        }
+    }
+}</code></pre>
+            </div>
+
+            <div class="step">
+                <div class="step-title">步骤2：编写用户管理测试类</div>
+                <p>创建 <code>SysUserMapperTest.java</code>：</p>
+                <pre><code>package com.example.test;
+
+import com.example.mapper.SysUserMapper;
+import com.example.pojo.SysUser;
+import org.apache.ibatis.session.SqlSession;
+import org.junit.Test;
+import java.util.*;
+
+public class SysUserMapperTest extends BaseTest {
+    
+    @Test
+    public void testFindAll() {
+        SysUserMapper mapper = sqlSession.getMapper(SysUserMapper.class);
+        List&lt;SysUser&gt; users = mapper.findAll();
+        
+        System.out.println("用户总数：" + users.size());
+        for (SysUser user : users) {
+            System.out.println("用户名：" + user.getUsername() + "，真实姓名：" + user.getRealName());
+        }
+        
+        assert users.size() > 0;
+    }
+    
+    @Test
+    public void testInsert() {
+        SysUserMapper mapper = sqlSession.getMapper(SysUserMapper.class);
+        
+        SysUser user = new SysUser();
+        user.setUsername("testuser");
+        user.setPassword("123456");
+        user.setRealName("测试用户");
+        user.setEmail("test@example.com");
+        user.setPhone("13900139000");
+        user.setStatus(1);
+        
+        int rows = mapper.insert(user);
+        
+        System.out.println("插入成功，用户ID：" + user.getUserId());
+        assert rows == 1;
+        assert user.getUserId() != null;
+    }
+    
+    @Test
+    public void testFindUserWithRoles() {
+        SysUserMapper mapper = sqlSession.getMapper(SysUserMapper.class);
+        
+        SysUser user = mapper.findUserWithRoles(1);
+        
+        System.out.println("用户：" + user.getUsername());
+        System.out.println("角色数：" + user.getRoles().size());
+        
+        for (SysRole role : user.getRoles()) {
+            System.out.println("  角色：" + role.getRoleName());
+        }
+        
+        assert user.getRoles().size() > 0;
+    }
+    
+    @Test
+    public void testFindUserWithPermissions() {
+        SysUserMapper mapper = sqlSession.getMapper(SysUserMapper.class);
+        
+        SysUser user = mapper.findUserWithPermissions(1);
+        
+        System.out.println("用户：" + user.getUsername());
+        System.out.println("权限数：" + user.getPermissions().size());
+        
+        for (SysPermission permission : user.getPermissions()) {
+            System.out.println("  权限：" + permission.getPermissionName());
+        }
+        
+        assert user.getPermissions().size() > 0;
+    }
+}</code></pre>
+            </div>
+
+            <div class="step">
+                <div class="step-title">步骤3：运行测试</div>
+                <p><strong>运行所有测试：</strong></p>
+                <pre><code>mvn test</code></pre>
+                
+                <p><strong>预期输出：</strong></p>
+                <pre><code>用户总数：3
+用户名：admin，真实姓名：管理员
+用户名：zhangsan，真实姓名：张三
+用户名：lisi，真实姓名：李四
+
+插入成功，用户ID：4
+
+用户：admin
+角色数：3
+  角色：超级管理员
+  角色：普通用户
+  角色：VIP用户
+
+用户：admin
+权限数：8
+  权限：系统管理
+  权限：用户管理
+  ...</code></pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>实验5：扩展功能实现</h2>
+            
+            <div class="step">
+                <div class="step-title">扩展1：实现用户登录验证</div>
+                <p>创建 <code>LoginService.java</code>：</p>
+                <pre><code>package com.example.service;
+
+import com.example.mapper.SysUserMapper;
+import com.example.pojo.SysUser;
+import org.apache.ibatis.io.Resources;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import java.io.InputStream;
+
+public class LoginService {
+    
+    public SysUser login(String username, String password) {
+        try {
+            String resource = "mybatis-config.xml";
+            InputStream inputStream = Resources.getResourceAsStream(resource);
+            SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+            
+            try (SqlSession session = sqlSessionFactory.openSession()) {
+                SysUserMapper mapper = session.getMapper(SysUserMapper.class);
+                
+                // 根据用户名查询用户
+                SysUser user = mapper.findByUsername(username);
+                
+                // 验证密码
+                if (user != null && password.equals(user.getPassword())) {
+                    return user;
+                }
+                
+                return null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}</code></pre>
+            </div>
+
+            <div class="step">
+                <div class="step-title">扩展2：实现权限检查</div>
+                <p>创建 <code>PermissionService.java</code>：</p>
+                <pre><code>package com.example.service;
+
+import com.example.mapper.SysUserMapper;
+import com.example.pojo.SysUser;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class PermissionService {
+    
+    private SysUserMapper userMapper;
+    
+    public boolean hasPermission(Integer userId, String permissionCode) {
+        SysUser user = userMapper.findUserWithPermissions(userId);
+        
+        if (user == null || user.getPermissions() == null) {
+            return false;
+        }
+        
+        return user.getPermissions().stream()
+                .anyMatch(p -> permissionCode.equals(p.getPermissionCode()));
+    }
+    
+    public List&lt;String&gt; getUserPermissions(Integer userId) {
+        SysUser user = userMapper.findUserWithPermissions(userId);
+        
+        if (user == null || user.getPermissions() == null) {
+            return List.of();
+        }
+        
+        return user.getPermissions().stream()
+                .map(p -> p.getPermissionCode())
+                .collect(Collectors.toList());
+    }
+}</code></pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>实验总结</h2>
+            
+            <h3>完成清单</h3>
+            <table>
+                <tr>
+                    <th>任务</th>
+                    <th>完成情况</th>
+                    <th>备注</th>
+                </tr>
+                <tr>
+                    <td>数据库设计与创建</td>
+                    <td>□ 已完成</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>项目搭建与配置</td>
+                    <td>□ 已完成</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>实体类与Mapper接口开发</td>
+                    <td>□ 已完成</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>测试与验证</td>
+                    <td>□ 已完成</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>扩展功能实现</td>
+                    <td>□ 已完成</td>
+                    <td></td>
+                </tr>
+            </table>
+
+            <h3>常见问题排查</h3>
+            <div class="warning">
+                <p><strong>问题1：测试时出现空指针异常</strong></p>
+                <p>原因：数据库连接配置错误，或者表名、字段名错误。</p>
+                <p>解决方案：检查 mybatis-config.xml 中的数据库连接配置，确保在MySQL中能正常查询数据。</p>
+            </div>
+
+            <div class="warning">
+                <p><strong>问题2：关联查询时角色或权限为null</strong></p>
+                <p>原因：@Many 或 @One 注解中的 select 属性配置错误。</p>
+                <p>解决方案：检查 select 属性的值是否为全限定方法名（如 com.example.mapper.SysRoleMapper.findByUserId）。</p>
+            </div>
+
+            <div class="warning">
+                <p><strong>问题3：延迟加载不生效</strong></p>
+                <p>原因：mybatis-config.xml 中未开启延迟加载配置。</p>
+                <p>解决方案：添加 &lt;setting name="lazyLoadingEnabled" value="true"/&gt; 配置。</p>
+            </div>
+
+            <h3>实验成果</h3>
+            <div class="tip">
+                <p>完成本实验后，你将获得：</p>
+                <ol>
+                    <li>一个完整的用户-角色-权限管理系统</li>
+                    <li>熟练掌握MyBatis注解开发的各项技术</li>
+                    <li>能够独立设计和实现基于MyBatis的权限管理系统</li>
+                    <li>为学习MyBatis与Spring/Spring Boot集成打下基础</li>
+                </ol>
+            </div>
+
+            <h3>下一步学习方向</h3>
+            <div class="tip">
+                <ul>
+                    <li>MyBatis与Spring集成（使用@MapperScan）</li>
+                    <li>MyBatis与Spring Boot集成（使用mybatis-spring-boot-starter）</li>
+                    <li>MyBatis-Plus增强工具（简化CRUD操作）</li>
+                    <li>PageHelper分页插件深入使用</li>
+                    <li>MyBatis二级缓存配置与使用</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
