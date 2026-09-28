@@ -7,8 +7,8 @@
     <properties resource="db.properties"/>
 
     <settings>
-        <!-- 使用 Log4j2 输出 SQL 日志，便于排查参数绑定与结果映射 -->
-        <setting name="logImpl" value="LOG4J2"/>
+        <!-- 使用 Log4j 输出 SQL 日志，便于排查参数绑定与结果映射 -->
+        <setting name="logImpl" value="LOG4J"/>
         <!-- 开启数据库下划线列名到 Java 驼峰字段的自动映射 -->
         <setting name="mapUnderscoreToCamelCase" value="true"/>
     </settings>
