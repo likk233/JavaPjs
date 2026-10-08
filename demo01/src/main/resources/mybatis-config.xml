@@ -7,10 +7,14 @@
     <properties resource="db.properties"/>
 
     <settings>
-        <!-- 使用 Log4j 输出 SQL 日志，便于排查参数绑定与结果映射 -->
-        <setting name="logImpl" value="LOG4J"/>
-        <!-- 开启数据库下划线列名到 Java 驼峰字段的自动映射 -->
+        <!-- 开启驼峰命名自动映射 -->
         <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <!-- 开启延迟加载：访问关联属性时才执行嵌套查询 -->
+        <setting name="lazyLoadingEnabled" value="true"/>
+        <!-- 关闭积极加载：访问普通属性不加载全部关联属性 -->
+        <setting name="aggressiveLazyLoading" value="false"/>
+        <!-- 打印 SQL 日志：使用项目已有的 Log4j 控制台配置 -->
+        <setting name="logImpl" value="LOG4J"/>
     </settings>
 
     <environments default="development">
@@ -28,5 +32,16 @@
     <!-- 注册 Mapper 映射文件 -->
     <mappers>
         <mapper resource="mapper/UserMapper.xml"/>
+        <mapper resource="mapper/ProductMapper.xml"/>
+        <mapper resource="mapper/SupplierMapper.xml"/>
+        <mapper resource="mapper/IdCardMapper.xml"/>
+        <mapper resource="mapper/EmpMapper.xml"/>
+        <mapper resource="mapper/DepMapper.xml"/>
+        <mapper class="com.example.mapper.OrderMapper"/>
+        <!-- MyBatis-Plus BaseMapper 接口 -->
+        <mapper class="com.example.mapper.UserPlusMapper"/>
+        <!-- 学生与课程多对多关联（注解配置 SQL 与延迟加载） -->
+        <mapper class="com.example.mapper.StudentMapper"/>
+        <mapper class="com.example.mapper.CourseMapper"/>
     </mappers>
 </configuration>

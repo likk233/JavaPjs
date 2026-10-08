@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import java.sql.PreparedStatement;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -135,6 +136,49 @@ public class UserMapperTest {
             assertEquals(3, users.size(), "应查询到 3 条用户");
             for (User u : users) {
                 System.out.println(u);
+            }
+        }
+    }
+
+    @Test
+    @Order(8)
+    void testSelectUserWithOrders() throws Exception {
+        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
+            // 清理残留数据（先删订单，再删用户）
+            try (java.sql.Statement st = session.getConnection().createStatement()) {
+                st.execute("DELETE FROM orders");
+                st.execute("DELETE FROM user");
+            }
+
+            UserMapper mapper = session.getMapper(UserMapper.class);
+            User user = new User(null, "关联用户", "pass", "assoc@qq.com");
+            mapper.insert(user);
+            assertNotNull(user.getId(), "插入用户后主键应回填");
+
+            // 通过 JDBC 为该用户插入两笔订单，构造一对多数据
+            try (PreparedStatement ps = session.getConnection().prepareStatement(
+                    "INSERT INTO orders (user_id, order_no, amount) VALUES (?, ?, ?)")) {
+                ps.setInt(1, user.getId());
+                ps.setString(2, "NO-A001");
+                ps.setDouble(3, 100.50);
+                ps.addBatch();
+
+                ps.setInt(1, user.getId());
+                ps.setString(2, "NO-A002");
+                ps.setDouble(3, 200.00);
+                ps.addBatch();
+
+                ps.executeBatch();
+            }
+
+            User loaded = mapper.selectUserWithOrders(user.getId());
+            assertNotNull(loaded, "关联查询应有结果");
+            assertEquals("关联用户", loaded.getUsername());
+            assertNotNull(loaded.getOrders(), "订单集合不应为 null");
+            assertEquals(2, loaded.getOrders().size(), "应带出 2 笔订单");
+            for (com.example.entity.Order o : loaded.getOrders()) {
+                assertEquals(user.getId(), o.getUserId(), "订单应归属该用户");
+                System.out.println(o);
             }
         }
     }

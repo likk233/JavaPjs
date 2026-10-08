@@ -22,6 +22,33 @@
             <version>3.5.16</version>
         </dependency>
 
+        <!-- MyBatis-Plus（非 Spring 项目使用核心包，内置 BaseMapper 等增强能力） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus</artifactId>
+            <version>3.5.7</version>
+        </dependency>
+
+        <!-- MyBatis-Plus 的部分默认方法（如 deleteById）依赖 Spring 的泛型解析，
+             非 Spring 项目需引入 spring-core 才能正常调用 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>5.3.32</version>
+        </dependency>
+
+        <!-- MyBatis-Plus 内部使用 slf4j 输出日志，这里接入 slf4j-api 并桥接到项目已有的 Log4j 1.x -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+
         <!-- MySQL 驱动 -->
         <dependency>
             <groupId>com.mysql</groupId>

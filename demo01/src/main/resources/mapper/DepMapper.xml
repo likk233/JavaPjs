@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.DepMapper">
+
+    <!-- 部门基础映射（不含员工集合） -->
+    <resultMap id="depMap" type="com.example.entity.Dep">
+        <id property="depId" column="dep_id"/>
+        <result property="depName" column="dep_name"/>
+        <result property="loc" column="loc"/>
+    </resultMap>
+
+    <!-- 一对多嵌套结果：部门 + 员工集合。
+         员工外键列起别名 emp_dep_id，避免与部门主键 dep_id 冲突；
+         collection 用 ofType 指定集合元素类型，子元素主键必须用 id 以保证不重复。 -->
+    <resultMap id="depWithEmpsMap" type="com.example.entity.Dep" extends="depMap">
+        <collection property="emps" ofType="com.example.entity.Emp">
+            <id property="empId" column="emp_id"/>
+            <result property="empName" column="emp_name"/>
+            <result property="job" column="job"/>
+            <result property="salary" column="salary"/>
+            <result property="depId" column="emp_dep_id"/>
+        </collection>
+    </resultMap>
+
+    <!-- 一对多嵌套 select -->
+    <resultMap id="depWithEmpsNestedMap" type="com.example.entity.Dep" extends="depMap">
+        <collection property="emps" ofType="com.example.entity.Emp"
+                    select="com.example.mapper.EmpMapper.selectByDepId"
+                    column="dep_id"/>
+    </resultMap>
+
+    <!-- 仅查部门本身 -->
+    <select id="selectByIdBase" parameterType="java.lang.Integer" resultMap="depMap">
+        SELECT dep_id, dep_name, loc
+        FROM dep
+        WHERE dep_id = #{depId}
+    </select>
+
+    <!-- 一对多：按主键查部门（嵌套结果） -->
+    <select id="selectById" parameterType="java.lang.Integer" resultMap="depWithEmpsMap">
+        SELECT d.dep_id, d.dep_name, d.loc,
+               e.emp_id, e.emp_name, e.job, e.salary,
+               e.dep_id AS emp_dep_id
+        FROM dep d
+        LEFT JOIN emp e ON d.dep_id = e.dep_id
+        WHERE d.dep_id = #{depId}
+        ORDER BY e.emp_id
+    </select>
+
+    <!-- 一对多：按主键查部门（嵌套 select） -->
+    <select id="selectByIdNested" parameterType="java.lang.Integer" resultMap="depWithEmpsNestedMap">
+        SELECT dep_id, dep_name, loc
+        FROM dep
+        WHERE dep_id = #{depId}
+    </select>
+
+    <!-- 一对多：查全部部门并带出员工 -->
+    <select id="selectAllWithEmps" resultMap="depWithEmpsMap">
+        SELECT d.dep_id, d.dep_name, d.loc,
+               e.emp_id, e.emp_name, e.job, e.salary,
+               e.dep_id AS emp_dep_id
+        FROM dep d
+        LEFT JOIN emp e ON d.dep_id = e.dep_id
+        ORDER BY d.dep_id, e.emp_id
+    </select>
+
+</mapper>

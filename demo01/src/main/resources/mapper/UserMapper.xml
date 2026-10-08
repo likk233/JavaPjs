@@ -45,6 +45,32 @@
         WHERE username = #{username}
     </select>
 
+    <!-- 一对多嵌套查询：遵循全局延迟加载配置，访问 orders 时查询订单。 -->
+    <resultMap id="userWithOrdersMap" type="com.example.entity.User" extends="userResultMap">
+        <collection property="orders" ofType="com.example.entity.Order"
+                    column="id" select="com.example.mapper.OrderMapper.selectByUserId"/>
+    </resultMap>
+
+    <!-- 先查用户基本字段，订单通过上面的 collection 延迟加载。 -->
+    <select id="selectUserWithOrders" parameterType="java.lang.Integer" resultMap="userWithOrdersMap">
+        SELECT id, username, password, email
+        FROM user
+        WHERE id = #{id}
+    </select>
+
+    <!-- 一对一嵌套查询：遵循全局延迟加载配置，无身份证时返回 null。 -->
+    <resultMap id="userWithIdCardMap" type="com.example.entity.User" extends="userResultMap">
+        <association property="idCard" javaType="com.example.entity.IdCard"
+                     column="id" select="com.example.mapper.IdCardMapper.selectCardByUserId"/>
+    </resultMap>
+
+    <!-- 先查用户基本字段，身份证通过上面的 association 延迟加载。 -->
+    <select id="selectUserWithIdCard" parameterType="java.lang.Integer" resultMap="userWithIdCardMap">
+        SELECT id, username, password, email
+        FROM user
+        WHERE id = #{id}
+    </select>
+
     <!-- 根据主键更新 -->
     <update id="updateById" parameterType="com.example.entity.User">
         UPDATE user

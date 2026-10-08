@@ -19,8 +19,29 @@ CREATE TABLE `user` (
   DEFAULT CHARSET = utf8mb4
   COMMENT = '用户表';
 
+-- 订单表：与 user 表构成一对多关系（user.id -> orders.user_id）
+DROP TABLE IF EXISTS `orders`;
+
+CREATE TABLE `orders` (
+    `id`       INT           NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `user_id`  INT           NOT NULL COMMENT '用户外键',
+    `order_no` VARCHAR(50)   NOT NULL COMMENT '订单编号',
+    `amount`   DECIMAL(10,2)          COMMENT '订单金额',
+    PRIMARY KEY (`id`),
+    KEY `idx_orders_user_id` (`user_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COMMENT = '订单表';
+
 -- 插入初始测试数据
 INSERT INTO `user` (`username`, `password`, `email`) VALUES
 ('张三', '123', 'zhangsan@qq.com'),
 ('李四', '456', 'lisi@qq.com'),
 ('王五', '789', 'wangwu@qq.com');
+
+-- 插入订单测试数据（对应上面三个用户）
+INSERT INTO `orders` (`user_id`, `order_no`, `amount`) VALUES
+(1, 'NO20241001001', 199.00),
+(1, 'NO20241001002', 88.50),
+(2, 'NO20241002001', 520.00),
+(3, 'NO20241003001', 66.00);

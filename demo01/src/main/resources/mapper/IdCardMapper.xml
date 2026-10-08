@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.IdCardMapper">
+
+    <!-- 一对一嵌套结果：id_card.user_id 外键起别名 idcard_user_id，
+         避免与 user 表主键 user_id 冲突。 -->
+    <resultMap id="idCardWithUserMap" type="com.example.entity.IdCard">
+        <id property="id" column="id"/>
+        <result property="cardNo" column="card_no"/>
+        <result property="address" column="address"/>
+        <result property="userId" column="idcard_user_id"/>
+        <association property="user" javaType="com.example.entity.User">
+            <id property="id" column="user_id"/>
+            <result property="username" column="username"/>
+            <result property="password" column="password"/>
+            <result property="email" column="email"/>
+        </association>
+    </resultMap>
+
+    <!-- 一对一嵌套 select：association 上用 select + column 指向用户查询 -->
+    <resultMap id="idCardWithUserNestedMap" type="com.example.entity.IdCard">
+        <id property="id" column="id"/>
+        <result property="cardNo" column="card_no"/>
+        <result property="address" column="address"/>
+        <result property="userId" column="user_id"/>
+        <association property="user" javaType="com.example.entity.User"
+                     select="com.example.mapper.UserMapper.selectById"
+                     column="user_id"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.entity.IdCard"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO id_card (card_no, address, user_id)
+        VALUES (#{cardNo}, #{address}, #{userId})
+    </insert>
+
+    <!-- 一对一：嵌套结果（一条 LEFT JOIN） -->
+    <select id="selectById" parameterType="java.lang.Integer" resultMap="idCardWithUserMap">
+        SELECT ic.id, ic.card_no, ic.address,
+               ic.user_id AS idcard_user_id,
+               u.id AS user_id, u.username, u.password, u.email
+        FROM id_card ic
+        LEFT JOIN user u ON ic.user_id = u.id
+        WHERE ic.id = #{id}
+    </select>
+
+    <!-- 一对一：嵌套 select -->
+    <select id="selectByIdNested" parameterType="java.lang.Integer" resultMap="idCardWithUserNestedMap">
+        SELECT id, card_no, address, user_id
+        FROM id_card
+        WHERE id = #{id}
+    </select>
+
+    <!-- 按用户 id 查身份证 -->
+    <select id="selectByUserId" parameterType="java.lang.Integer" resultMap="idCardWithUserMap">
+        SELECT ic.id, ic.card_no, ic.address,
+               ic.user_id AS idcard_user_id,
+               u.id AS user_id, u.username, u.password, u.email
+        FROM id_card ic
+        LEFT JOIN user u ON ic.user_id = u.id
+        WHERE ic.user_id = #{userId}
+    </select>
+
+</mapper>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第3节 分页、自动填充、逻辑删除与乐观锁_详细版 - 详细版 - 第08章 MyBatis-Plus核心实战</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; line-height: 1.8; color: #333; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 15px; margin-bottom: 10px; font-size: 26px; }
+        .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 30px; }
+        h2 { color: #2980b9; border-left: 4px solid #3498db; padding-left: 15px; margin-top: 40px; font-size: 21px; }
+        h3 { color: #16a085; margin-top: 30px; font-size: 18px; }
+        h4 { color: #7f8c8d; margin-top: 20px; font-size: 16px; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 18px 20px; border-radius: 5px; overflow-x: auto; line-height: 1.6; }
+        pre code { font-family: 'Consolas', 'Monaco', monospace; font-size: 13.5px; }
+        code { font-family: 'Consolas', 'Monaco', monospace; background: #eef2f5; padding: 2px 6px; border-radius: 3px; color: #c0392b; font-size: 13.5px; }
+        pre code { background: transparent; padding: 0; color: inherit; }
+        .note { background: #e8f4f8; border-left: 4px solid #3498db; padding: 15px 20px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px 20px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        .tip { background: #d4edda; border-left: 4px solid #28a745; padding: 15px 20px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        .note-title { font-weight: bold; margin-bottom: 6px; }
+        .note .note-title { color: #2471a3; }
+        .warning .note-title { color: #9a7d0a; }
+        .tip .note-title { color: #1e7e34; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; vertical-align: top; }
+        th { background: #3498db; color: white; font-weight: 600; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        ul, ol { margin: 15px 0; padding-left: 30px; }
+        li { margin: 6px 0; }
+        .filepath { display: inline-block; background: #2c3e50; color: #7fe3a1; font-family: 'Consolas', 'Monaco', monospace; font-size: 12.5px; padding: 4px 10px; border-radius: 4px; margin: 12px 0 6px; word-break: break-all; }
+        .srcmap { background: #f4f7fa; border: 1px solid #d6e2ef; border-radius: 6px; padding: 14px 18px; margin: 18px 0; }
+        .srcmap ul { margin: 6px 0 0; }
+        .srcmap li { font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; }
+        .badge { display: inline-block; background: #eaf3fb; color: #1a6fa8; border: 1px solid #bcd8ee; border-radius: 4px; font-size: 12px; padding: 1px 8px; margin-right: 6px; }
+        hr { border: none; border-top: 1px solid #e6e6e6; margin-top: 50px; }
+        .footer { text-align: center; color: #999; font-size: 13.5px; margin-top: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+<h1>第08章 第3 分页、自动填充、逻辑删除与乐观锁 - 详细版</h1>
+<div class="subtitle">课程代码 1960229 · Java框架技术 · 配套项目：SpringSpringMVCMybatis（Spring 4.3.30.RELEASE + MyBatis 3.5.13）</div>
+<h2>一、学习目标</h2>
+<ol>
+<li>配置 <code>MybatisPlusInterceptor</code> 与 <code>PaginationInnerInterceptor</code> 实现物理分页</li>
+<li>实现 <code>MetaObjectHandler</code> 自动填充 createTime / updateTime</li>
+<li>理解 <code>@TableLogic</code> 逻辑删除的 SQL 改写原理</li>
+<li>理解 <code>@Version</code> 乐观锁的 WHERE 校验与版本递增机制</li>
+</ol>
+<h2>二、核心知识点</h2>
+<h3>8.3.1 插件链：MybatisPlusInterceptor</h3>
+<p>MP 3.5.x 的插件统一装进 <code>MybatisPlusInterceptor</code>，再往里 add 一个个 <code>InnerInterceptor</code>。本项目注册了两个：分页（必加，否则 selectPage 不生效）与乐观锁；分页还设置了 <code>setMaxLimit(500)</code> 防止一次拉取过多。</p>
+<span class="badge">java</span><pre><code>public class MybatisPlusConfig {
+
+    public static MybatisPlusInterceptor buildInterceptor() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+
+        PaginationInnerInterceptor pagination =
+                new PaginationInnerInterceptor(DbType.MYSQL);
+        pagination.setMaxLimit(500L);              // 单页上限 500 条
+        interceptor.addInnerInterceptor(pagination);
+
+        interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
+
+        return interceptor;
+    }
+}</code></pre>
+<h3>8.3.2 物理分页：Page<T></h3>
+<p><code>Page&lt;T&gt;</code> 携带页码与页大小，查询后 <code>IPage</code> 回填 total / pages / records。分页插件自动拼 <code>LIMIT</code> 并追加一条 <code>SELECT COUNT(*)</code>。</p>
+<span class="badge">java</span><pre><code>Page&lt;Student&gt; page = new Page&lt;&gt;(2, 3);          // 第 2 页，每页 3 条
+
+LambdaQueryWrapper&lt;Student&gt; wrapper = new LambdaQueryWrapper&lt;&gt;();
+wrapper.orderByDesc(Student::getScore);
+
+IPage&lt;Student&gt; result = studentMapper.selectPage(page, wrapper);
+
+result.getTotal();      // 总记录数
+result.getPages();      // 总页数
+result.getCurrent();    // 当前页码
+result.getSize();       // 每页条数
+result.getRecords();    // 当前页数据</code></pre>
+<h3>8.3.3 自动填充：MetaObjectHandler</h3>
+<p>实体上 <code>@TableField(fill = FieldFill.INSERT / INSERT_UPDATE)</code> 标记填充字段，处理器里用 <code>strictInsertFill</code>（字段为 null 才填，不覆盖手动值）或 <code>setFieldValByName</code>（强制覆盖）。注意：MetaObjectHandler 不属于 InnerInterceptor，要挂在 GlobalConfig 上。</p>
+<span class="badge">java</span><pre><code>public class MyMetaObjectHandler implements MetaObjectHandler {
+
+    @Override
+    public void insertFill(MetaObject metaObject) {
+        LocalDateTime now = LocalDateTime.now();
+        // 严格填充：只有字段为 null 时才填充，不覆盖手动设置的值
+        this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, now);
+        this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, now);
+    }
+
+    @Override
+    public void updateFill(MetaObject metaObject) {
+        // INSERT_UPDATE 类型的字段，在 UPDATE 时也会走这里
+        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
+    }
+}
+
+// 注册（StudentTest.init() 中）：
+GlobalConfig globalConfig = new GlobalConfig();
+globalConfig.setMetaObjectHandler(new MyMetaObjectHandler());
+GlobalConfigUtils.setGlobalConfig(configuration, globalConfig);</code></pre>
+<h3>8.3.4 逻辑删除：@TableLogic</h3>
+<p>加 <code>@TableLogic</code> 后，MP 对该实体的删除全部改写为 UPDATE，查询自动追加 <code>WHERE deleted=0</code>。物理删除该用什么时候？——需要真删时用自定义 SQL 或去掉注解。</p>
+<span class="badge">java</span><pre><code>// 执行 deleteById(12) 时，MP 实际执行的 SQL：
+// UPDATE mp_student SET deleted=1 WHERE id=12 AND deleted=0
+
+studentMapper.deleteById(tmpId);
+Student gone = studentMapper.selectById(tmpId);   // null：查询自动过滤 deleted=1
+
+// selectCount 等所有内置方法同样自动过滤，无需手写条件</code></pre>
+<h3>8.3.5 乐观锁：@Version</h3>
+<p>更新时 MP 自动追加 <code>WHERE version = 旧值</code> 并 <code>SET version = 旧值+1</code>。若数据已被别人改过（version 不匹配），影响行数为 0——更新被安全丢弃，适合低冲突的并发写场景。</p>
+<span class="badge">java</span><pre><code>Student student = studentMapper.selectById(3L);
+student.setScore(66.0);
+studentMapper.updateById(student);
+// 实际 SQL：UPDATE mp_student SET score=?, version=1 WHERE id=3 AND version=0
+
+// 用「过期版本」更新：
+Student stale = new Student();
+stale.setId(3L);
+stale.setVersion(0);                // 数据库已经是 1，匹配不到
+int rows = studentMapper.updateById(stale);
+// rows = 0：WHERE version=0 匹配不到，更新被丢弃</code></pre>
+<h2>三、对照表 / 参数说明</h2>
+<h4>三大机制对比</h4>
+<table>
+<thead><tr><th>机制</th><th>参与方式</th><th>生效条件</th><th>典型场景</th></tr></thead>
+<tbody>
+<tr><td>分页</td><td><code>InnerInterceptor</code> 插件</td><td>注册 PaginationInnerInterceptor + DbType</td><td>列表页翻页</td></tr>
+<tr><td>自动填充</td><td><code>MetaObjectHandler</code>（GlobalConfig）</td><td>字段加 <code>@TableField(fill)</code></td><td>审计字段自动维护</td></tr>
+<tr><td>逻辑删除</td><td><code>@TableLogic</code></td><td>表中有标记位字段</td><td>软删除、可恢复</td></tr>
+<tr><td>乐观锁</td><td><code>@Version</code> + 插件</td><td>注册 OptimisticLockerInnerInterceptor</td><td>并发更新防覆盖</td></tr>
+</tbody>
+</table>
+<h4>填充 API 选择</h4>
+<table>
+<thead><tr><th>API</th><th>行为</th><th>适用</th></tr></thead>
+<tbody>
+<tr><td><code>strictInsertFill</code></td><td>字段为 null 才填充</td><td>推荐，安全</td></tr>
+<tr><td><code>setFieldValByName</code></td><td>无条件覆盖</td><td>需要强制刷新时</td></tr>
+</tbody>
+</table>
+<h2>四、项目源码对照</h2>
+<div class="srcmap">
+<strong>📁 本章对应项目源码（SpringSpringMVCMybatis）</strong>
+<ul>
+<li>src/main/java/com/chaperMybatisPlus/config/MybatisPlusConfig.java</li>
+<li>src/main/java/com/chaperMybatisPlus/config/MyMetaObjectHandler.java</li>
+<li>src/test/java/com/chaperMybatisPlus/StudentTest.java</li>
+</ul>
+</div>
+<span class="filepath">src/test/java/com/chaperMybatisPlus/StudentTest.java</span>
+<p>每个测试的「>>> 观察」都指出了应在日志或数据里确认的现象。</p>
+<span class="badge">java</span><pre><code>// ========== 6 分页查询 ==========
+@Test
+public void testPage() {
+    Page&lt;Student&gt; page = new Page&lt;&gt;(2, 3);
+    LambdaQueryWrapper&lt;Student&gt; wrapper = new LambdaQueryWrapper&lt;&gt;();
+    wrapper.orderByDesc(Student::getScore);
+    IPage&lt;Student&gt; result = studentMapper.selectPage(page, wrapper);
+
+    System.out.println("总记录数: " + result.getTotal());
+    System.out.println("总页数: " + result.getPages());
+    result.getRecords().forEach(s -&gt;
+            System.out.println(s.getName() + " | 专业:" + s.getMajor() + " | 分数:" + s.getScore()));
+}
+
+// ========== 7 自动填充 ==========
+@Test
+public void testAutoFill() {
+    Student student = new Student();
+    student.setName("自动填充测试");
+    student.setAge(25);
+    student.setEmail("auto@test.com");
+    student.setMajor("自动化");
+    student.setScore(99.9);
+
+    studentMapper.insert(student);
+    Student after = studentMapper.selectById(student.getId());
+    System.out.println("&gt;&gt;&gt; 观察：createTime / updateTime 被 MyMetaObjectHandler 自动填充了");
+}
+
+// ========== 8 逻辑删除 ==========
+@Test
+public void testLogicDelete() {
+    Student tmp = new Student("逻辑删除测试", 30, "logic@test.com", "测试", 50.0);
+    studentMapper.insert(tmp);
+    studentMapper.deleteById(tmp.getId());
+    Student deleted = studentMapper.selectById(tmp.getId());
+    System.out.println("&gt;&gt;&gt; 观察：deleteById 实际是 UPDATE SET deleted=1，"
+            + "selectById 自动加 WHERE deleted=0");
+}
+
+// ========== 9 乐观锁 ==========
+@Test
+public void testOptimisticLock() {
+    Student student = studentMapper.selectById(3L);
+    int beforeVersion = student.getVersion();
+    student.setScore(66.0);
+    studentMapper.updateById(student);
+
+    Student after = studentMapper.selectById(3L);
+    System.out.println("version: " + beforeVersion + " -&gt; " + after.getVersion());
+
+    Student stale = new Student();
+    stale.setId(3L);
+    stale.setVersion(0);            // 过期版本
+    int rows = studentMapper.updateById(stale);
+    System.out.println("用过期 version=0 更新，影响行数 = " + rows);   // 0
+}</code></pre>
+<h2>五、运行结果</h2>
+<span class="badge">text</span><pre><code>========== 6 分页查询 ==========
+总记录数: 8
+总页数: 3
+当前页: 2
+每页条数: 3
+第 2 页数据（按分数降序，每页 3 条）:
+  孙八 | 专业:软件工程 | 分数:73.5
+  ...
+========== 9 乐观锁 @Version ==========
+读取时 version = 0
+更新后 version = 1
+用过期 version=0 更新，影响行数 = 0
+&gt;&gt;&gt; 观察：rows=0，WHERE version=0 匹配不到，更新被丢弃</code></pre>
+<h2>六、注意事项与常见坑</h2>
+<div class="warning">
+<div class="note-title">⚠️ 分页不生效的最常见原因</div>
+<ul>
+<li>没有注册 <code>PaginationInnerInterceptor</code>，或注册时没指定 <code>DbType.MYSQL</code>。</li>
+<li>插件注册发生在 <code>MybatisSqlSessionFactoryBuilder.build()</code> 之前——顺序错了等于没注册。</li>
+</ul>
+</div>
+<div class="note">
+<div class="note-title">📌 MetaObjectHandler 的注册位置</div>
+<ul>
+<li>它不是 InnerInterceptor，别往 <code>addInterceptor()</code> 里塞。</li>
+<li>本项目通过 <code>GlobalConfigUtils.setGlobalConfig(configuration, globalConfig)</code> 注册；Spring Boot 集成时交给容器即可自动生效。</li>
+</ul>
+</div>
+<div class="tip">
+<div class="note-title">✅ 乐观锁失败后的业务处理</div>
+<ul>
+<li><code>rows == 0</code> 说明并发冲突，通常的做法是重试（重新读取最新 version 再更新）或提示用户。</li>
+<li>乐观锁适合读多写少；高冲突场景应考虑悲观锁或分布式锁。</li>
+</ul>
+</div>
+<h2>七、小结</h2>
+<div class="tip">
+<div class="note-title">✅ 本节要点</div>
+<ul>
+<li>会配置 MybatisPlusInterceptor 插件链并实现物理分页</li>
+<li>会实现 MetaObjectHandler 自动维护审计字段</li>
+<li>说得清逻辑删除的 SQL 改写原理与适用边界</li>
+<li>说得清乐观锁的 WHERE 校验机制与冲突处理思路</li>
+</ul>
+</div>
+        <hr>
+        <p class="footer">Spring Core 教学课程 · 第08章 MyBatis-Plus核心实战 · 第8-3 节</p>
+    </div>
+</body>
+</html>

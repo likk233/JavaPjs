@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.SupplierMapper">
+
+    <!-- 供应商 + 商品（多对多，每个商品带买家客户）+ 服务的客户（多对多）。
+         商品与买家用一条 JOIN 的嵌套结果；服务的客户用嵌套 select 单独加载，避免笛卡尔积。 -->
+    <resultMap id="supplierDetailMap" type="com.example.entity.Supplier">
+        <id property="id" column="supplier_id"/>
+        <result property="name" column="supplier_name"/>
+        <result property="contact" column="supplier_contact"/>
+        <collection property="products" ofType="com.example.entity.Product">
+            <id property="id" column="product_id"/>
+            <result property="name" column="product_name"/>
+            <result property="price" column="product_price"/>
+            <result property="customerId" column="product_customer_id"/>
+            <association property="customer" javaType="com.example.entity.Customer">
+                <id property="id" column="customer_id"/>
+                <result property="name" column="customer_name"/>
+                <result property="phone" column="customer_phone"/>
+            </association>
+        </collection>
+        <collection property="customers" ofType="com.example.entity.Customer"
+                    select="com.example.mapper.SupplierMapper.selectServedCustomersBySupplierId"
+                    column="supplier_id"/>
+    </resultMap>
+
+    <!-- 需求二：查供应商，带出卖出的商品（含买家）与服务的客户 -->
+    <select id="selectSupplier" parameterType="java.lang.Integer" resultMap="supplierDetailMap">
+        SELECT s.id AS supplier_id, s.name AS supplier_name, s.contact AS supplier_contact,
+               p.id AS product_id, p.name AS product_name, p.price AS product_price,
+               p.customer_id AS product_customer_id,
+               c.id AS customer_id, c.name AS customer_name, c.phone AS customer_phone
+        FROM supplier s
+        LEFT JOIN supplier_product sp ON s.id = sp.supplier_id
+        LEFT JOIN product p ON sp.product_id = p.id
+        LEFT JOIN customer c ON p.customer_id = c.id
+        WHERE s.id = #{id}
+        ORDER BY p.id
+    </select>
+
+    <!-- 嵌套 select：指定供应商服务的全部客户 -->
+    <select id="selectServedCustomersBySupplierId" parameterType="java.lang.Integer"
+            resultType="com.example.entity.Customer">
+        SELECT c.id, c.name, c.phone
+        FROM customer c
+        JOIN supplier_customer sc ON c.id = sc.customer_id
+        WHERE sc.supplier_id = #{supplierId}
+        ORDER BY c.id
+    </select>
+
+</mapper>
