@@ -1,0 +1,6 @@
+# 演练：参数名写错：#{accountNo} -> #{accountno}
+==> 调用 selectByAccountNo("BA-DRILL")
+### Error querying database.  Cause: org.apache.ibatis.binding.BindingException: Parameter 'accountno' not found. Available parameters are [accountNo, param1]
+### Cause: org.apache.ibatis.binding.BindingException: Parameter 'accountno' not found. Available parameters are [accountNo, param1]
+Caused by: org.apache.ibatis.binding.BindingException: Parameter 'accountno' not found. Available parameters are [accountNo, param1]
+退出码：1

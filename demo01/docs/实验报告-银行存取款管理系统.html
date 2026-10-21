@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天津理工大学 实验报告 — 实验一 MyBatis Lab（银行存取款管理系统）</title>
+<style>
+  :root{
+    --ink:#1a1a1a;
+    --muted:#555;
+    --line:#c9c9c9;
+    --bg:#fff;
+    --code-bg:#f6f8fa;
+    --accent:#0b5cab;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    padding:0 0 60px;
+    background:#e9ecef;
+    color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB","Source Han Sans SC",SimSun,serif;
+    font-size:15px;
+    line-height:1.85;
+  }
+  .page{
+    max-width:860px;
+    margin:24px auto;
+    background:var(--bg);
+    padding:56px 64px 72px;
+    box-shadow:0 2px 14px rgba(0,0,0,.12);
+  }
+  .doc-title{
+    text-align:center;
+    font-size:26px;
+    font-weight:700;
+    letter-spacing:4px;
+    margin:0 0 6px;
+  }
+  .doc-sub{
+    text-align:center;
+    font-size:15px;
+    color:var(--muted);
+    margin:0 0 26px;
+  }
+  table.info{
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:34px;
+    font-size:14.5px;
+  }
+  table.info td,table.info th{
+    border:1px solid var(--line);
+    padding:8px 10px;
+    vertical-align:middle;
+  }
+  table.info th{
+    background:#f3f5f7;
+    font-weight:600;
+    white-space:nowrap;
+    text-align:center;
+  }
+  h2{
+    font-size:19px;
+    margin:38px 0 14px;
+    padding-left:10px;
+    border-left:5px solid var(--accent);
+    line-height:1.4;
+  }
+  h3{
+    font-size:16.5px;
+    margin:26px 0 10px;
+    color:#14375e;
+  }
+  h4{
+    font-size:15px;
+    margin:18px 0 8px;
+    color:#243b53;
+  }
+  p{margin:8px 0;}
+  ul,ol{margin:8px 0 8px 0;padding-left:26px;}
+  li{margin:5px 0;}
+  ul.dash{list-style:none;padding-left:6px;}
+  ul.dash>li{position:relative;padding-left:16px;}
+  ul.dash>li::before{
+    content:"●";
+    position:absolute;left:0;top:0;
+    font-size:9px;
+    color:#6b7785;
+    line-height:2.4;
+  }
+  code.inline{
+    background:var(--code-bg);
+    border:1px solid #e2e6ea;
+    border-radius:3px;
+    padding:1px 5px;
+    font-family:Consolas,"Courier New",monospace;
+    font-size:13.5px;
+    color:#b02a37;
+    word-break:break-word;
+  }
+  pre{
+    background:var(--code-bg);
+    border:1px solid #e2e6ea;
+    border-left:4px solid #9fb6cd;
+    border-radius:4px;
+    padding:12px 16px;
+    overflow-x:auto;
+    font-family:Consolas,"Courier New",monospace;
+    font-size:13px;
+    line-height:1.6;
+    color:#24292f;
+    margin:10px 0 16px;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+  pre.log{
+    background:#111418;
+    color:#d6e2ef;
+    border-left-color:#4a7fb5;
+    font-size:12.5px;
+  }
+  .figure{
+    margin:18px 0 22px;
+    page-break-inside:avoid;
+  }
+  .figure img{
+    display:block;
+    width:100%;
+    border:1px solid #d5dbe1;
+    border-radius:4px;
+  }
+  .figure.crop img{
+    height:420px;
+    object-fit:cover;
+    object-position:top;
+  }
+  .figure-caption{
+    text-align:center;
+    font-size:13.5px;
+    margin-top:8px;
+    color:#2d3d4f;
+  }
+  .figure-note{
+    font-size:13px;
+    color:var(--muted);
+    margin-top:4px;
+    text-align:justify;
+  }
+  .note{
+    background:#f7fbff;
+    border:1px solid #cfe2f3;
+    border-left:4px solid #4a90d9;
+    padding:10px 14px;
+    border-radius:4px;
+    font-size:14px;
+    margin:14px 0;
+  }
+  .warn{
+    background:#fff8f0;
+    border:1px solid #f0d9bd;
+    border-left:4px solid #e08b2f;
+    padding:10px 14px;
+    border-radius:4px;
+    font-size:14px;
+    margin:14px 0;
+  }
+  table.grid{
+    width:100%;
+    border-collapse:collapse;
+    font-size:14px;
+    margin:12px 0 18px;
+  }
+  table.grid th,table.grid td{
+    border:1px solid var(--line);
+    padding:8px 10px;
+    vertical-align:top;
+    text-align:left;
+  }
+  table.grid th{
+    background:#f3f5f7;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .task-tag{
+    display:inline-block;
+    background:#e8f1fb;
+    color:#0b5cab;
+    border-radius:3px;
+    padding:1px 8px;
+    font-size:13px;
+    margin-right:6px;
+    font-weight:600;
+  }
+  .footer-note{
+    margin-top:48px;
+    border-top:1px solid var(--line);
+    padding-top:12px;
+    font-size:13px;
+    color:var(--muted);
+    display:flex;
+    justify-content:space-between;
+  }
+  @media print{
+    body{background:#fff;font-size:12pt;}
+    .page{max-width:none;margin:0;padding:0 0 12mm;box-shadow:none;}
+    pre{page-break-inside:avoid;}
+    h2,h3{page-break-after:avoid;}
+    .figure{page-break-inside:avoid;}
+  }
+  @media (max-width:700px){
+    .page{padding:28px 18px 48px;}
+    .doc-title{font-size:21px;letter-spacing:2px;}
+    table.info{font-size:13px;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1 class="doc-title">天津理工大学　实验报告</h1>
+  <p class="doc-sub">学院（系）名称：华信软件学院</p>
+
+  <table class="info">
+    <tr>
+      <th>姓名</th><td>张欣悦</td>
+      <th>学号</th><td>20241779</td>
+      <th>专业</th><td>软件工程</td>
+      <th>班级</th><td>2班</td>
+    </tr>
+    <tr>
+      <th>实验项目</th><td colspan="3">实验一 MyBatis Lab（银行存取款管理系统）</td>
+      <th>课程名称</th><td colspan="3">JAVA 框架技术（一）</td>
+    </tr>
+    <tr>
+      <th>课程代码</th><td>1960229</td>
+      <th>实验时间</th><td>2026.9—2026.10</td>
+      <th>实验地点</th><td colspan="3">机房</td>
+    </tr>
+    <tr>
+      <th>批改意见</th><td colspan="5" style="height:52px;"></td>
+      <th>成绩</th><td></td>
+    </tr>
+    <tr>
+      <th>教师签字</th><td colspan="5" style="height:36px;"></td>
+      <th>日期</th><td></td>
+    </tr>
+  </table>
+
+  <h2>一、实验概况</h2>
+  <ul class="dash">
+    <li><strong>实验名称：</strong>实验一 MyBatis Lab（自拟业务：银行存取款管理系统）</li>
+    <li><strong>实验时间与学时：</strong>2026 年 9 月—10 月，共 4 学时</li>
+    <li><strong>实验环境与版本：</strong>
+      <ul class="dash">
+        <li>操作系统：macOS；开发工具：VS Code + GitHub Copilot</li>
+        <li>核心语言：JDK 21（OpenJDK）</li>
+        <li>构建工具：Maven 3.9.6（配置阿里云镜像与本地仓库）</li>
+        <li>数据库：MySQL 8.4.9</li>
+        <li>框架与依赖：MyBatis 3.5.16、MyBatis-Plus 3.5.7、MySQL Connector/J 8.4.0、Log4j 1.2.17、JUnit Jupiter 5.10.2</li>
+      </ul>
+    </li>
+    <li><strong>版本说明：</strong>实验指导书中的 <code class="inline">ssm_emp</code>、<code class="inline">emp</code> 表及 JDK 8/11、JUnit 4 为参考内容；经老师确认，个人项目可自拟业务与版本。本项目采用银行三表模型与现代 JDK/JUnit 5。</li>
+    <li><strong>业务背景：</strong>数据库 <code class="inline">mybatis_demo</code>，包含客户表 <code class="inline">bank_customer</code>、账户表 <code class="inline">bank_account</code>、流水表 <code class="inline">bank_transaction</code>。账户通过 <code class="inline">customer_id</code> 外键关联客户，流水通过 <code class="inline">account_id</code> 外键关联账户；账户余额有 <code class="inline">CHECK (balance &gt;= 0)</code> 约束，流水有金额与余额一致性的检查约束。</li>
+    <li><strong>功能范围：</strong>控制台菜单共 10 项——查询客户、新增客户、修改客户、开户、余额查询、存款、取款、流水分页、客户账单、退出系统。存款/取款在同一个事务内完成行锁、余额更新与流水写入。</li>
+  </ul>
+
+  <h2>二、实验目标</h2>
+  <ol>
+    <li><strong>环境搭建与配置能力：</strong>掌握基于 Maven 从零搭建 MyBatis 环境的流程，理解 <code class="inline">mybatis-config.xml</code> 中设置项、类型别名、数据源、Mapper 注册的配置规范，并能排查依赖冲突。</li>
+    <li><strong>核心组件与生命周期理解：</strong>理解 SqlSessionFactory、SqlSession 与 Mapper 代理之间的关系，掌握用工具类 <code class="inline">MyBatisUtil</code> 维护全局唯一工厂、按业务操作开启/关闭会话的方法。</li>
+    <li><strong>数据持久化与 CRUD 开发：</strong>熟练使用 Mapper 接口与 XML 映射实现增删改查，掌握 <code class="inline">#{}</code> 参数绑定、自定义 <code class="inline">resultMap</code>、<code class="inline">&lt;sql&gt;/&lt;include&gt;</code> 列复用与自增主键回填。</li>
+    <li><strong>动态 SQL 与批量操作：</strong>掌握 <code class="inline">if</code>、<code class="inline">trim</code>、<code class="inline">set</code>、<code class="inline">foreach</code>、<code class="inline">choose/when/otherwise</code> 的适用场景，理解多参数 <code class="inline">@Param</code> 命名与批量 SQL 的写法。</li>
+    <li><strong>MyBatis-Plus 与分页：</strong>掌握 BaseMapper 通用 CRUD、Lambda 条件构造器、分页插件注册与物理分页日志，能区分单表条件查询与复杂 XML 查询的使用边界。</li>
+    <li><strong>事务、日志与测试：</strong>掌握 Log4j 追踪 SQL、参数与行数，能编写 JUnit 测试并用回滚保证可重复执行；能依据日志定位参数绑定、结果映射与主键回填问题。</li>
+  </ol>
+
+  <h2>三、实验内容与过程</h2>
+
+  <h3><span class="task-tag">任务 1</span>数据库与工程初始化</h3>
+
+  <h4>1. 数据库建模</h4>
+  <p>三张表通过外键形成“客户 → 账户 → 流水”的层级关系，金额统一使用 <code class="inline">DECIMAL(18,2)</code>，并用 CHECK 约束保证余额不为负、流水金额与前后余额一致。</p>
+<pre>CREATE TABLE IF NOT EXISTS bank_customer (
+    id    INT NOT NULL AUTO_INCREMENT,
+    name  VARCHAR(50) NOT NULL,
+    phone VARCHAR(30) NOT NULL,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS bank_account (
+    id          BIGINT NOT NULL AUTO_INCREMENT,
+    account_no  VARCHAR(34) NOT NULL,
+    customer_id INT NOT NULL,
+    balance     DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+    created_at  DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_bank_account_no (account_no),
+    CONSTRAINT fk_bank_account_customer FOREIGN KEY (customer_id)
+        REFERENCES bank_customer(id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT chk_bank_account_balance CHECK (balance &gt;= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS bank_transaction (
+    id             BIGINT NOT NULL AUTO_INCREMENT,
+    account_id     BIGINT NOT NULL,
+    type           VARCHAR(8) NOT NULL,
+    amount         DECIMAL(18,2) NOT NULL,
+    balance_before DECIMAL(18,2) NOT NULL,
+    balance_after  DECIMAL(18,2) NOT NULL,
+    created_at     DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    CONSTRAINT fk_bank_transaction_account FOREIGN KEY (account_id)
+        REFERENCES bank_account(id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT chk_bank_transaction CHECK (
+        amount &gt; 0 AND balance_before &gt;= 0 AND balance_after &gt;= 0 AND
+        ((type = 'DEPOSIT'  AND balance_after = balance_before + amount) OR
+         (type = 'WITHDRAW' AND balance_after = balance_before - amount))
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;</pre>
+
+  <h4>2. Maven 依赖配置</h4>
+  <p>MyBatis-Plus 3.5.7 内部依赖 MyBatis 核心，项目保留 MyBatis 3.5.16 作为显式依赖并统一由 MP 管理；通过 <code class="inline">dependency:tree</code> 确认没有重复的 MyBatis 版本冲突。非 Spring 环境下，MP 的部分默认方法需要 <code class="inline">spring-core</code> 的泛型解析能力，因此额外引入该依赖。</p>
+<pre>&lt;dependency&gt;
+    &lt;groupId&gt;org.mybatis&lt;/groupId&gt;
+    &lt;artifactId&gt;mybatis&lt;/artifactId&gt;
+    &lt;version&gt;3.5.16&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;com.baomidou&lt;/groupId&gt;
+    &lt;artifactId&gt;mybatis-plus&lt;/artifactId&gt;
+    &lt;version&gt;3.5.7&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;com.mysql&lt;/groupId&gt;
+    &lt;artifactId&gt;mysql-connector-j&lt;/artifactId&gt;
+    &lt;version&gt;8.4.0&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;log4j&lt;/groupId&gt;
+    &lt;artifactId&gt;log4j&lt;/artifactId&gt;
+    &lt;version&gt;1.2.17&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.junit.jupiter&lt;/groupId&gt;
+    &lt;artifactId&gt;junit-jupiter&lt;/artifactId&gt;
+    &lt;version&gt;5.10.2&lt;/version&gt;
+    &lt;scope&gt;test&lt;/scope&gt;
+&lt;/dependency&gt;</pre>
+
+  <h4>3. 工程结构</h4>
+<pre>src/main/java
+├── com/example/entity      Customer、BankAccount、BankTransaction、TransactionType
+├── com/example/mapper      CustomerMapper、BankAccountMapper、BankTransactionMapper
+├── com/example/service     BankService（事务边界）
+├── com/example/util        MyBatisUtil、BankValidation、BankSchemaValidator
+└── org/example             Main、BankConsole（控制台入口）
+src/main/resources
+├── mybatis-config.xml、db.properties、log4j.properties
+└── mapper/                 CustomerMapper.xml、BankAccountMapper.xml、BankTransactionMapper.xml
+src/test/java/com/example/bank
+└── BankServiceTest、CustomerMapperTest、BankInfrastructureTest 等 6 个测试类</pre>
+
+  <h4>4. Git 版本记录</h4>
+  <p>项目路径下共 8 次提交（2026-09-17 至 2026-10-22），提交信息覆盖环境初始化、Mapper 测试、动态 SQL 完成、银行业务实现与任务清单核对；每个任务节点完成后提交一次，保留开发轨迹。</p>
+
+  <h3><span class="task-tag">任务 2</span>MyBatis 基础 CRUD、Log4j 与 JUnit</h3>
+
+  <h4>1. 全局配置</h4>
+<pre>&lt;configuration&gt;
+    &lt;properties resource="db.properties"/&gt;
+    &lt;settings&gt;
+        &lt;setting name="vfsImpl" value="com.example.util.VisibleFilesVfs"/&gt;
+        &lt;setting name="mapUnderscoreToCamelCase" value="true"/&gt;
+        &lt;setting name="lazyLoadingEnabled" value="true"/&gt;
+        &lt;setting name="aggressiveLazyLoading" value="false"/&gt;
+        &lt;setting name="logImpl" value="LOG4J"/&gt;
+    &lt;/settings&gt;
+    &lt;typeAliases&gt;
+        &lt;package name="com.example.entity"/&gt;
+    &lt;/typeAliases&gt;
+    &lt;environments default="development"&gt;
+        &lt;environment id="development"&gt;
+            &lt;transactionManager type="JDBC"/&gt;
+            &lt;dataSource type="POOLED"&gt;
+                &lt;property name="driver"   value="${jdbc.driver}"/&gt;
+                &lt;property name="url"      value="${jdbc.url}"/&gt;
+                &lt;property name="username" value="${jdbc.username}"/&gt;
+                &lt;property name="password" value="${jdbc.password}"/&gt;
+            &lt;/dataSource&gt;
+        &lt;/environment&gt;
+    &lt;/environments&gt;
+    &lt;mappers&gt;
+        &lt;mapper resource="mapper/CustomerMapper.xml"/&gt;
+        &lt;mapper resource="mapper/BankAccountMapper.xml"/&gt;
+        &lt;mapper resource="mapper/BankTransactionMapper.xml"/&gt;
+        &lt;package name="com.example.mapper"/&gt;
+    &lt;/mappers&gt;
+&lt;/configuration&gt;</pre>
+
+  <h4>2. 实体与 Mapper</h4>
+<pre>@TableName("bank_customer")
+public class Customer {
+    @TableId(type = IdType.AUTO)
+    private Integer id;
+    private String name;
+    private String phone;
+    // getter / setter / toString 略
+}
+
+public interface CustomerMapper extends BaseMapper&lt;Customer&gt; {
+    List&lt;Customer&gt; selectByCondition(@Param("condition") Customer condition);
+    List&lt;Customer&gt; selectByPriority(@Param("name") String name, @Param("phone") String phone);
+    int updateFields(@Param("customer") Customer customer);
+    int insertRows(@Param("customers") List&lt;Customer&gt; customers);
+    int deleteRows(@Param("ids") List&lt;Integer&gt; ids);
+}</pre>
+
+  <h4>3. XML 映射：resultMap、列复用与主键回填</h4>
+<pre>&lt;mapper namespace="com.example.mapper.CustomerMapper"&gt;
+    &lt;sql id="allColumns"&gt;id, name, phone&lt;/sql&gt;
+
+    &lt;resultMap id="customerMap" type="Customer"&gt;
+        &lt;id     property="id"    column="id"/&gt;
+        &lt;result property="name"  column="name"/&gt;
+        &lt;result property="phone" column="phone"/&gt;
+    &lt;/resultMap&gt;
+
+    &lt;select id="selectByCondition" resultMap="customerMap"&gt;
+        SELECT &lt;include refid="allColumns"/&gt; FROM bank_customer
+        &lt;trim prefix="WHERE" prefixOverrides="AND |OR "&gt;
+            &lt;if test="condition != null and condition.name != null and !condition.name.isBlank()"&gt;
+                AND name LIKE CONCAT('%', #{condition.name}, '%')
+            &lt;/if&gt;
+            &lt;if test="condition != null and condition.phone != null and !condition.phone.isBlank()"&gt;
+                AND phone LIKE CONCAT('%', #{condition.phone}, '%')
+            &lt;/if&gt;
+        &lt;/trim&gt;
+        ORDER BY id
+    &lt;/select&gt;
+
+    &lt;insert id="insertRows" useGeneratedKeys="true" keyProperty="customers.id"&gt;
+        INSERT INTO bank_customer (name, phone) VALUES
+        &lt;foreach collection="customers" item="customer" separator=","&gt;
+            (#{customer.name}, #{customer.phone})
+        &lt;/foreach&gt;
+    &lt;/insert&gt;
+&lt;/mapper&gt;</pre>
+
+  <h4>4. 会话工具类</h4>
+<pre>public final class MyBatisUtil {
+    private static final SqlSessionFactory FACTORY = createSqlSessionFactory(new Properties());
+
+    public static SqlSessionFactory createSqlSessionFactory(Properties properties) {
+        try (InputStream in = Resources.getResourceAsStream("mybatis-config.xml")) {
+            SqlSessionFactory factory = new MybatisSqlSessionFactoryBuilder().build(in, properties);
+            MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+            interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+            factory.getConfiguration().addInterceptor(interceptor);
+            return factory;
+        } catch (IOException e) {
+            throw new RuntimeException("加载 mybatis-config.xml 失败", e);
+        }
+    }
+    public static SqlSessionFactory getSqlSessionFactory() { return FACTORY; }
+}</pre>
+  <p>工厂全局只构建一次；业务写操作通过 <code class="inline">openSession(false)</code> 手动提交或回滚，查询与测试通过 try-with-resources 自动关闭会话。分页拦截器在工厂构建后以代码方式注册——这比写进 XML <code class="inline">&lt;plugins&gt;</code> 更可靠，因为 <code class="inline">MybatisPlusInterceptor</code> 的内部拦截器是列表，XML 的 <code class="inline">&lt;property&gt;</code> 只能注入字符串属性。</p>
+
+  <h4>5. 运行结果与日志</h4>
+<pre class="log">[日志] 00:09:18.391 DEBUG CustomerMapper.selectByCondition - ==&gt;  Preparing:
+SELECT id, name, phone FROM bank_customer ORDER BY id
+[日志] 00:09:18.391 DEBUG CustomerMapper.selectByCondition - ==&gt; Parameters:
+[日志] 00:09:18.391 DEBUG CustomerMapper.selectByCondition - &lt;==      Total: 1
+┌─ 条件查询结果 · 共 1 条 ─────────────────────────────────────────────┐
+│ 1. Customer{id=1, name=张三, phone=123}                              │
+└───────────────────────────────────────────────────────────────────────┘</pre>
+  <p>日志中的 <code class="inline">Preparing</code> 显示带 <code class="inline">?</code> 的 SQL，<code class="inline">Parameters</code> 显示绑定实参与类型，<code class="inline">Total</code> 显示返回行数，可直接核对参数绑定与结果映射。</p>
+
+  <h4>6. JUnit 测试</h4>
+  <p>共 6 个测试类、42 个用例，每个测试类创建独立的 <code class="inline">bank_test_</code> 数据库，结束后删除；写操作用例通过回滚或临时库隔离，保证可重复执行。</p>
+<pre>BankServiceTest          17 个用例（存取款、事务回滚、边界金额）
+CustomerMapperTest        8 个用例（BaseMapper CRUD、动态 SQL、批量操作）
+BankInfrastructureTest    7 个用例（配置、连接池、Schema 校验）
+BankConsoleTest           6 个用例（菜单流程、异常输入）
+BankConcurrencyTest       3 个用例（并发扣款）
+MainSmokeTest             1 个用例（启动真实 Main 子进程）
+合计                     42 个用例，全部通过</pre>
+
+  <h3><span class="task-tag">任务 3</span>动态 SQL 与批量操作</h3>
+
+  <h4>1. if + trim 多条件查询</h4>
+  <p>项目用 <code class="inline">&lt;trim prefix="WHERE" prefixOverrides="AND |OR "&gt;</code> 等效实现 <code class="inline">&lt;where&gt;</code>：有条件时自动补 <code class="inline">WHERE</code> 并去掉开头多余的 <code class="inline">AND</code>，条件全空时不生成 <code class="inline">WHERE</code>。日志验证三种情况：</p>
+<pre class="log">条件：姓名=客户，电话=138
+SELECT id, name, phone FROM bank_customer WHERE name LIKE CONCAT('%', ?, '%') AND phone LIKE CONCAT('%', ?, '%') ORDER BY id
+
+条件：全空
+SELECT id, name, phone FROM bank_customer ORDER BY id
+
+条件：仅姓名=客户乙
+SELECT id, name, phone FROM bank_customer WHERE name LIKE CONCAT('%', ?, '%') ORDER BY id</pre>
+
+  <h4>2. choose 分支查询</h4>
+<pre>&lt;select id="selectByPriority" resultMap="customerMap"&gt;
+    SELECT &lt;include refid="allColumns"/&gt; FROM bank_customer
+    &lt;choose&gt;
+        &lt;when test="name != null and !name.isBlank()"&gt;WHERE name = #{name}&lt;/when&gt;
+        &lt;when test="phone != null and !phone.isBlank()"&gt;WHERE phone = #{phone}&lt;/when&gt;
+        &lt;otherwise&gt;&lt;!-- 没有条件时查询全部 --&gt;&lt;/otherwise&gt;
+    &lt;/choose&gt;
+    ORDER BY id
+&lt;/select&gt;</pre>
+  <p>分支命中即停：姓名优先精确匹配，否则按电话，最后退回全部；测试用例覆盖了三种分支与空白字符串输入。</p>
+
+  <h4>3. set 选择性更新</h4>
+<pre>&lt;update id="updateFields"&gt;
+    UPDATE bank_customer
+    &lt;set&gt;
+        &lt;if test="customer.name != null"&gt;name = #{customer.name},&lt;/if&gt;
+        &lt;if test="customer.phone != null"&gt;phone = #{customer.phone},&lt;/if&gt;
+    &lt;/set&gt;
+    WHERE id = #{customer.id}
+&lt;/update&gt;</pre>
+  <p><code class="inline">&lt;set&gt;</code> 自动去掉末尾多余逗号；未传入的字段保持原值，测试验证了“只改姓名”与“只改电话”两种场景。</p>
+
+  <h4>4. foreach 批量插入与批量删除</h4>
+<pre>&lt;insert id="insertRows" useGeneratedKeys="true" keyProperty="customers.id"&gt;
+    INSERT INTO bank_customer (name, phone) VALUES
+    &lt;foreach collection="customers" item="customer" separator=","&gt;
+        (#{customer.name}, #{customer.phone})
+    &lt;/foreach&gt;
+&lt;/insert&gt;
+
+&lt;delete id="deleteRows"&gt;
+    DELETE FROM bank_customer WHERE id IN
+    &lt;foreach collection="ids" item="id" open="(" separator="," close=")"&gt;#{id}&lt;/foreach&gt;
+&lt;/delete&gt;</pre>
+  <p>批量插入采用单条 <code class="inline">INSERT ... VALUES (...),(...)</code>，减少网络往返；批量删除用 <code class="inline">IN</code> 一次完成。多参数方法显式使用 <code class="inline">@Param("customers")</code>、<code class="inline">@Param("ids")</code>，避免参数名绑定异常。</p>
+
+  <h3><span class="task-tag">任务 4</span>MyBatis-Plus 与分页</h3>
+
+  <h4>1. 通用 CRUD 与条件构造器</h4>
+<pre>public interface CustomerMapper extends BaseMapper&lt;Customer&gt; {
+    // 自定义方法仍保留，XML 与 BaseMapper 共存
+    List&lt;Customer&gt; selectByCondition(@Param("condition") Customer condition);
+}
+
+default Page&lt;Customer&gt; selectCustomerPage(long current, long size, String name, String phone) {
+    BankValidation.page(current, size);
+    return selectPage(new Page&lt;&gt;(current, size), Wrappers.&lt;Customer&gt;lambdaQuery()
+            .like(name != null &amp;&amp; !name.isBlank(), Customer::getName, name)
+            .like(phone != null &amp;&amp; !phone.isBlank(), Customer::getPhone, phone)
+            .orderByAsc(Customer::getId));
+}</pre>
+  <p><code class="inline">Customer::getName</code> 方法引用代替字符串列名，字段名错误在编译期暴露；<code class="inline">like(condition, column, value)</code> 的条件开关让空条件自动跳过。</p>
+
+  <h4>2. 分页插件与物理分页日志</h4>
+<pre class="log">[日志] DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==&gt;  Preparing:
+SELECT COUNT(*) AS total FROM bank_transaction WHERE account_id = ?
+[日志] DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==&gt; Parameters: 1(Long)
+[日志] DEBUG BankTransactionMapper.selectAccountPage_mpCount - &lt;==      Total: 1
+[日志] DEBUG BankTransactionMapper.selectAccountPage - ==&gt;  Preparing:
+SELECT id, account_id, type, amount, balance_before, balance_after, created_at
+FROM bank_transaction WHERE account_id = ? ORDER BY id DESC LIMIT ?
+[日志] DEBUG BankTransactionMapper.selectAccountPage - ==&gt; Parameters: 1(Long), 10(Long)
+[日志] DEBUG BankTransactionMapper.selectAccountPage - &lt;==      Total: 2</pre>
+  <p>分页拦截器先发 COUNT 统计总数，再发带 <code class="inline">LIMIT ?</code> 的查询，属于物理分页；业务总数从 <code class="inline">Page.getTotal()</code> 读取，日志中的 <code class="inline">Total: 1</code> 是 COUNT 查询返回一行统计结果，不是业务记录数。</p>
+
+  <h3><span class="task-tag">任务 5</span>三表关联、事务一致性与并发（拓展）</h3>
+
+  <h4>1. 客户账单与流水分页</h4>
+  <p>“客户账单”按客户编号一次性查询其全部账户；“流水分页”先按账号定位账户，再按 <code class="inline">account_id</code> 分页查询流水。两次查询都只发一条 SQL，避免“先查主表再逐行查从表”的 N+1 问题。</p>
+<pre>&lt;select id="selectByCustomerId" resultMap="accountMap"&gt;
+    SELECT &lt;include refid="allColumns"/&gt;
+    FROM bank_account WHERE customer_id = #{customerId} ORDER BY id
+&lt;/select&gt;
+
+&lt;select id="selectAccountPage" resultMap="transactionMap"&gt;
+    SELECT &lt;include refid="allColumns"/&gt;
+    FROM bank_transaction WHERE account_id = #{accountId} ORDER BY id DESC
+&lt;/select&gt;</pre>
+
+  <h4>2. 行锁 + 余额更新 + 流水写入的同一事务</h4>
+<pre>return transaction(s -&gt; {
+    BankAccountMapper mapper = s.getMapper(BankAccountMapper.class);
+    BankAccount account = requireAccount(mapper.selectForUpdate(number)); // 行锁
+    BigDecimal before = account.getBalance();
+    BigDecimal after = type == TransactionType.DEPOSIT
+            ? before.add(money) : before.subtract(money);
+    if (after.signum() &lt; 0) throw new IllegalArgumentException("余额不足");
+    if (after.compareTo(BankValidation.MAX_BALANCE) &gt; 0)
+        throw new IllegalArgumentException("存款后余额超出允许范围");
+    if (mapper.updateBalance(account.getId(), after) != 1)
+        throw new IllegalStateException("余额更新失败");
+    BankTransaction entry = new BankTransaction();
+    entry.setAccountId(account.getId());
+    entry.setType(type);
+    entry.setAmount(money);
+    entry.setBalanceBefore(before);
+    entry.setBalanceAfter(after);
+    if (s.getMapper(BankTransactionMapper.class).insert(entry) != 1)
+        throw new IllegalStateException("流水写入失败");
+    return s.getMapper(BankTransactionMapper.class).selectById(entry.getId());
+});</pre>
+  <p>查询使用 <code class="inline">SELECT ... FOR UPDATE</code> 锁定账户行；余额不足、溢出或写入失败都会回滚，失败操作不产生流水。并发测试用 3 个用例验证多线程扣款不会超扣。</p>
+
+  <h3>错误演练与 ApiFox</h3>
+
+  <h4>1. 基于日志的三类错误演练</h4>
+  <ol>
+    <li><strong>参数名写错：</strong>把 <code class="inline">#{accountNo}</code> 改成 <code class="inline">#{accountno}</code> 后，SQL 尚未发送就抛异常，日志直接列出可用参数。
+      <pre class="log">org.apache.ibatis.binding.BindingException: Parameter 'accountno' not found.
+Available parameters are [accountNo, param1]</pre>
+      <div class="figure crop">
+        <img src="fault-drill/screenshots/01-parameter-binding.png" alt="参数名写错故障截图">
+        <div class="figure-caption">图 3.1　参数名不一致的运行日志（截取关键报错段）</div>
+        <div class="figure-note">说明：异常第二行给出可用参数列表，排查时据此把 XML 占位符改回 <code class="inline">#{accountNo}</code>。完整堆栈见 <code class="inline">docs/fault-drill/logs/01-parameter-binding.log</code>。</div>
+      </div>
+    </li>
+    <li><strong>resultMap 列名写错：</strong>把 <code class="inline">column="account_no"</code> 改成 <code class="inline">column="account_no_typo"</code>，SQL 正常执行且 <code class="inline">Total: 1</code>，但账号静默变为 <code class="inline">null</code>。
+      <pre class="log">[日志] ... selectByAccountNo - &lt;==      Total: 1
+查询结果：BankAccount{id=1, accountNo=null, customerId=1, balance=0.00, ...}</pre>
+      <div class="figure">
+        <img src="fault-drill/screenshots/02-resultmap-column.png" alt="resultMap 列名写错故障截图">
+        <div class="figure-caption">图 3.2　resultMap 列名错误的运行日志</div>
+        <div class="figure-note">说明：映射错误不抛异常，只能通过“有行数但字段为 null”发现；需对照 <code class="inline">resultMap</code> 的 column 与查询列名。</div>
+      </div>
+    </li>
+    <li><strong>去掉 useGeneratedKeys：</strong>插入成功（<code class="inline">Updates: 1</code>），但回填主键为 <code class="inline">null</code>。
+      <pre class="log">[日志] ... insertRows - &lt;==    Updates: 1
+影响行数：1
+回填主键：null</pre>
+      <div class="figure">
+        <img src="fault-drill/screenshots/03-generated-key.png" alt="去掉 useGeneratedKeys 故障截图">
+        <div class="figure-caption">图 3.3　主键未回填的运行日志</div>
+        <div class="figure-note">说明：自增主键回填依赖 <code class="inline">useGeneratedKeys="true"</code> 与 <code class="inline">keyProperty</code>；批量插入的 keyProperty 指向集合元素属性（<code class="inline">customers.id</code>）。</div>
+      </div>
+    </li>
+  </ol>
+  <p>演练使用临时数据库与临时 classpath 覆盖故障版 Mapper，不改动 <code class="inline">src</code> 源码；每次演练后恢复原配置并重跑测试。完整日志与复现脚本见 <code class="inline">docs/fault-drill/</code>。</p>
+
+  <h4>2. ApiFox 基础练习</h4>
+  <div class="warn"><strong>未完成：</strong>本次实验未安装 ApiFox，也未执行 GET 请求练习，报告不虚构请求与响应结果。该项待后续补充截图与响应 JSON。</div>
+
+  <h4>3. AI 代码甄别</h4>
+  <p>对 AI 生成的配置、映射与实体重点核对：依赖版本是否互相兼容、SQL 列名与真实表结构是否一致、<code class="inline">resultMap</code> 是否覆盖查询列、动态标签的空值边界（字符串判空、数值只判 null）、是否误用 <code class="inline">${}</code> 拼接用户输入。本项目 SQL 映射中没有使用 <code class="inline">${}</code>，所有用户输入均通过 <code class="inline">#{}</code> 绑定。</p>
+
+  <h2>四、常见问题与排查</h2>
+  <table class="grid">
+    <thead>
+      <tr><th style="width:42%;">错误现象</th><th>可能原因与处理</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code class="inline">BindingException: Parameter 'xxx' not found</code></td>
+        <td>XML 占位符与接口 <code class="inline">@Param</code> 名称不一致；看异常中的 <code class="inline">Available parameters</code>，统一命名即可。</td>
+      </tr>
+      <tr>
+        <td>查询有行数但字段全为 <code class="inline">null</code></td>
+        <td><code class="inline">resultMap</code> 的 <code class="inline">column</code> 与查询列名不一致，或驼峰映射未开启；对照列清单检查。</td>
+      </tr>
+      <tr>
+        <td>插入成功但主键为 <code class="inline">null</code></td>
+        <td>缺少 <code class="inline">useGeneratedKeys="true"</code> 或 <code class="inline">keyProperty</code> 路径错误；批量插入需指向集合元素属性。</td>
+      </tr>
+      <tr>
+        <td>分页返回全量数据</td>
+        <td>分页拦截器未注册。本项目在 <code class="inline">MyBatisUtil</code> 中注册 <code class="inline">MybatisPlusInterceptor + PaginationInnerInterceptor</code>；写进 XML <code class="inline">&lt;plugins&gt;</code> 会因无法注入内部拦截器列表而失效。</td>
+      </tr>
+      <tr>
+        <td><code class="inline">log4j.properties</code> 中文前缀显示乱码</td>
+        <td>Log4j 1.x 按 ISO-8859-1 读取 properties；中文改用 Unicode 转义，如 <code class="inline">[\u65E5\u5FD7]</code>。</td>
+      </tr>
+      <tr>
+        <td>删除客户时抛外键约束异常</td>
+        <td>客户名下仍有账户，<code class="inline">fk_bank_account_customer</code> 为 <code class="inline">ON DELETE RESTRICT</code>；先处理账户或保留客户。</td>
+      </tr>
+      <tr>
+        <td>macOS 外部卷出现 <code class="inline">._*</code> 文件干扰扫描</td>
+        <td>AppleDouble 元数据被 VFS 当作类/资源扫描；项目使用 <code class="inline">VisibleFilesVfs</code> 忽略隐藏元数据，Surefire 排除 <code class="inline">**/._*</code>。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>五、AI 应用记录</h2>
+
+  <h4>1. 项目初始化与持久层实现</h4>
+  <ul>
+    <li><strong>项目依据：</strong>2026-09-17 至 2026-10-08 的多次提交（环境初始化、Mapper 测试、动态 SQL 完成、重新上传）。</li>
+    <li><strong>AI 辅助内容：</strong>Maven 依赖清单、MyBatis/MP 配置结构、实体与 Mapper/XML 骨架、测试用例设计；项目 README 注明实现与测试由 OpenAI Codex 协助。</li>
+    <li><strong>人工校验：</strong>逐项运行 <code class="inline">dependency:tree</code> 与测试，确认无 MyBatis 重复依赖、SQL 与表结构一致；金额、事务与并发用例全部实际执行。</li>
+  </ul>
+
+  <h4>2. 配置补齐与输出可读性改造</h4>
+  <ul>
+    <li><strong>项目依据：</strong>2026-10-22 提交 <code class="inline">fc5a2df</code>（任务清单核对）。</li>
+    <li><strong>AI 辅助内容：</strong>补齐 <code class="inline">typeAliases</code>、三张表的 <code class="inline">resultMap</code>、<code class="inline">&lt;sql&gt;/&lt;include&gt;</code> 与 <code class="inline">&lt;trim&gt;</code>；调整控制台菜单顺序与结果框线，区分查询结果与 SQL 日志。</li>
+    <li><strong>人工校验与修正：</strong>每次改动后执行 42 个用例；曾因并行修改同一个 XML 导致 <code class="inline">ORDER BY id</code> 被写坏，测试立即报 SQL 语法错误，修复后重跑通过，说明测试对配置类缺陷的拦截作用。</li>
+  </ul>
+
+  <h4>3. 故障演练与日志排查</h4>
+  <ul>
+    <li><strong>AI 辅助内容：</strong>设计“临时库 + 临时 classpath 覆盖故障 XML”的演练方式，避免改动源码；整理三类故障的日志与排查结论。</li>
+    <li><strong>人工校验：</strong>实际运行三组演练并保存日志/截图，确认：参数错误抛 <code class="inline">BindingException</code>；resultMap 列名错误静默返回 null；去掉 <code class="inline">useGeneratedKeys</code> 后主键为 null。演练结束后删除临时库并重跑测试。</li>
+  </ul>
+
+  <h4>4. AI 输出质量的总体评价</h4>
+  <p>AI 能快速给出配置骨架与标签用法，也能在报错时提供定位方向；但它对“非 Spring 环境下的 MP 配置”“XML 中分页拦截器的写法”等约束把握不稳，容易给出形式正确但运行无效的配置。因此所有 AI 输出都以实际运行结果为准：以 <code class="inline">mvn test</code>、SQL 日志和数据库约束作为最终判据。</p>
+
+  <h2>六、思考题</h2>
+
+  <h3>1. #{} 和 ${} 的区别</h3>
+  <ol>
+    <li><code class="inline">#{}</code> 使用 PreparedStatement 预编译，SQL 中生成 <code class="inline">?</code> 占位符，参数单独绑定，可防止 SQL 注入。</li>
+    <li><code class="inline">${}</code> 做字符串拼接，用户输入会直接进入 SQL，存在注入风险。</li>
+    <li>普通参数一律用 <code class="inline">#{}</code>；只有表名、列名、排序字段等无法参数化的位置才考虑 <code class="inline">${}</code>，且必须做白名单校验。</li>
+    <li>本项目所有 SQL 映射只使用 <code class="inline">#{}</code>；动态排序没有开放给用户输入，避免拼接风险。</li>
+  </ol>
+
+  <h3>2. SqlSessionFactory、SqlSession 和 Mapper 的关系及生命周期</h3>
+  <ol>
+    <li>SqlSessionFactory 由配置构建，创建成本高，整个应用共享一个；本项目由 <code class="inline">MyBatisUtil</code> 的静态字段持有。</li>
+    <li>SqlSession 表示一次数据库会话，线程不安全，用完必须关闭；本项目在 Service 的 <code class="inline">transaction()</code> 中 try-with-resources 管理，成功提交、异常回滚。</li>
+    <li>Mapper 由 <code class="inline">session.getMapper()</code> 获取，是 MyBatis 动态代理对象，方法调用被转换成对应的 SQL statement。</li>
+    <li>作用域从大到小：Factory（应用级）→ Session（操作/事务级）→ Mapper（方法级，依附于某个 Session）。</li>
+  </ol>
+
+  <h3>3. 什么是 N+1 查询问题</h3>
+  <ol>
+    <li>先查 1 次得到 N 条主记录，再对每条记录各发 1 次关联查询，总共 1+N 次。</li>
+    <li>本项目若先查客户列表、再逐个客户查账户，就是 1+N；实际实现用 <code class="inline">selectByCustomerId</code> 一次取回该客户全部账户，流水按 <code class="inline">account_id</code> 一次分页查询，避免逐行查询。</li>
+    <li>也可用 JOIN 一次取数，或在内存中按外键分组匹配；关键是避免在循环里发 SQL。</li>
+    <li>延迟加载只是推迟查询时机，不减少查询次数，只适合关联数据可能用不到的场景。</li>
+  </ol>
+
+  <h3>4. XML 动态 SQL 和 MyBatis-Plus 条件构造器的取舍</h3>
+  <ol>
+    <li>XML 动态 SQL 灵活，适合复杂条件、批量语句、多表 JOIN 与精确控制 SQL；本项目客户多条件查询、批量插入/删除、流水分页均用 XML。</li>
+    <li>XML 的接口与 statement 靠命名约定关联，改名时容易断链，需要测试兜底。</li>
+    <li>MP 条件构造器写法简洁，Lambda 方法引用有编译期检查，适合单表 CRUD 与普通条件分页；本项目客户分页使用 <code class="inline">LambdaQueryWrapper</code>。</li>
+    <li>取舍原则：能用一个构造器清晰表达的单表查询用 MP；需要 JOIN、复杂动态条件或批量语句时用 XML。</li>
+  </ol>
+
+  <h3>5. AI 生成代码可能出现的问题及人工校验</h3>
+  <ol>
+    <li><strong>配置形式正确但运行无效：</strong>例如把分页拦截器写进 XML，无法注入内部拦截器列表，分页静默失效；需用日志确认是否出现 COUNT + LIMIT。</li>
+    <li><strong>忽略运行环境：</strong>非 Spring 项目引入 MP 时，工厂构建方式、额外依赖与插件注册都与 Spring 环境不同，需实际启动验证。</li>
+    <li><strong>映射与列名不一致：</strong>resultMap 列名错误不会报错，只会得到 null；需用断言或 SQL 日志核对。</li>
+    <li><strong>空值与边界处理不足：</strong>动态条件要区分字符串判空与数值判 null；金额、分页参数要做范围校验。</li>
+    <li><strong>并发修改风险：</strong>同时改同一文件可能产生语法损坏；应串行修改并用编译/测试立即验证。</li>
+  </ol>
+
+  <h2>七、实验总结与思考</h2>
+
+  <h3>（1）收获与体会</h3>
+  <p>这次实验把配置加载、工厂构建、会话管理、Mapper 代理执行 SQL 的完整链路串了起来。基础 CRUD 阶段需要同时对齐实体属性、接口方法、XML statement 三处命名；动态 SQL 阶段则要逐条想清楚空值边界，<code class="inline">&lt;trim&gt;</code>、<code class="inline">&lt;set&gt;</code>、<code class="inline">&lt;foreach&gt;</code> 分别解决了多余 AND、末尾逗号与批量拼值的问题。接入 MyBatis-Plus 后，BaseMapper 与 Lambda 条件构造器减少了模板代码，但前提是工厂使用 <code class="inline">MybatisSqlSessionFactoryBuilder</code> 并正确注册分页拦截器。</p>
+  <p>银行三表模型让我体会到数据库约束与事务边界的重要性：账户行锁、余额更新和流水写入必须处于同一事务，否则会出现余额与流水不一致；CHECK 约束与外键则在数据库层兜底。调试过程中也确认了“编译通过不等于功能正确”：resultMap 列名错误与主键未回填都不报错，只能靠日志、断言与数据核对发现。</p>
+
+  <h3>（2）对 AI 生成代码质量的评价</h3>
+  <p>AI 在生成配置骨架、解释标签用法、提供排查方向上效率很高；本次故障演练的复现思路、报告结构也借助了 AI。但它对具体环境约束（无 Spring、MP 版本、XML 插件写法）容易给出想当然的答案，偶尔还会在批量修改文件时破坏原有 SQL。我的做法是把 AI 输出当作起点：先小步修改，立即编译并跑测试，再用 SQL 日志确认实际行为，确认无误后才保留。</p>
+
+  <h3>（3）改进建议与后续思考</h3>
+  <p>提问时应一次给全环境、版本、已有配置与完整异常堆栈，并把问题缩小到单个方法或单个配置项。测试方面，后续可以补充批量插入的边界（空集合、超长 SQL）、并发场景下更细的锁等待验证，以及分页越界与排序白名单用例。ApiFox 请求练习本次未完成，需要在后续实验中补齐；同时可以尝试把控制台入口改造成 REST 接口，用 ApiFox 完成接口联调。</p>
+
+  <div class="footer-note">
+    <span>天津理工大学教务处制表</span>
+    <span>共 ____ 页</span>
+  </div>
+
+</div>
+</body>
+</html>

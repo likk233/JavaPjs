@@ -1,0 +1,33 @@
+# 演练：参数名写错：#{accountNo} -> #{accountno}
+# 故障设置：s/#{accountNo}/#{accountno}/g
+# 故障文件：BankAccountMapper.xml
+# 命令：java -Dconsole.color=never -cp <tmp>:target/classes:<deps> FaultDrill parameter
+
+==> 调用 selectByAccountNo("BA-DRILL")
+Exception in thread "main" org.apache.ibatis.exceptions.PersistenceException: 
+### Error querying database.  Cause: org.apache.ibatis.binding.BindingException: Parameter 'accountno' not found. Available parameters are [accountNo, param1]
+### Cause: org.apache.ibatis.binding.BindingException: Parameter 'accountno' not found. Available parameters are [accountNo, param1]
+	at org.apache.ibatis.exceptions.ExceptionFactory.wrapException(ExceptionFactory.java:30)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectList(DefaultSqlSession.java:156)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectList(DefaultSqlSession.java:147)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectList(DefaultSqlSession.java:142)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectOne(DefaultSqlSession.java:75)
+	at com.baomidou.mybatisplus.core.override.MybatisMapperMethod.execute(MybatisMapperMethod.java:87)
+	at com.baomidou.mybatisplus.core.override.MybatisMapperProxy$PlainMethodInvoker.invoke(MybatisMapperProxy.java:152)
+	at com.baomidou.mybatisplus.core.override.MybatisMapperProxy.invoke(MybatisMapperProxy.java:89)
+	at jdk.proxy2/jdk.proxy2.$Proxy11.selectByAccountNo(Unknown Source)
+	at FaultDrill.parameter(FaultDrill.java:35)
+	at FaultDrill.main(FaultDrill.java:24)
+Caused by: org.apache.ibatis.binding.BindingException: Parameter 'accountno' not found. Available parameters are [accountNo, param1]
+	at org.apache.ibatis.binding.MapperMethod$ParamMap.get(MapperMethod.java:210)
+	at org.apache.ibatis.reflection.wrapper.MapWrapper.get(MapWrapper.java:46)
+	at org.apache.ibatis.reflection.MetaObject.getValue(MetaObject.java:115)
+	at org.apache.ibatis.executor.BaseExecutor.createCacheKey(BaseExecutor.java:225)
+	at org.apache.ibatis.executor.CachingExecutor.createCacheKey(CachingExecutor.java:149)
+	at com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor.intercept(MybatisPlusInterceptor.java:80)
+	at org.apache.ibatis.plugin.Plugin.invoke(Plugin.java:59)
+	at jdk.proxy2/jdk.proxy2.$Proxy10.query(Unknown Source)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectList(DefaultSqlSession.java:154)
+	... 9 more
+
+退出码：1

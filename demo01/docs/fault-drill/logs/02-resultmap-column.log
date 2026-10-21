@@ -1,0 +1,20 @@
+# 演练：resultMap 列名写错：account_no -> account_no_typo
+# 故障设置：s/column="account_no"/column="account_no_typo"/
+# 故障文件：BankAccountMapper.xml
+# 命令：java -Dconsole.color=never -cp <tmp>:target/classes:<deps> FaultDrill resultmap
+
+[日志] 01:07:10.899 DEBUG CustomerMapper.insert - ==>  Preparing: INSERT INTO bank_customer ( name, phone ) VALUES ( ?, ? )
+[日志] 01:07:10.913 DEBUG CustomerMapper.insert - ==> Parameters: 映射演练(String), 100(String)
+[日志] 01:07:10.918 DEBUG CustomerMapper.insert - <==    Updates: 1
+[日志] 01:07:10.924 DEBUG BankAccountMapper.insert - ==>  Preparing: INSERT INTO bank_account (account_no, customer_id, balance) VALUES (?, ?, 0.00)
+[日志] 01:07:10.925 DEBUG BankAccountMapper.insert - ==> Parameters: BA-DRILL(String), 1(Integer)
+[日志] 01:07:10.928 DEBUG BankAccountMapper.insert - <==    Updates: 1
+[日志] 01:07:10.929 DEBUG BankAccountMapper.selectByAccountNo - ==>  Preparing: SELECT id, account_no, customer_id, balance, created_at FROM bank_account WHERE account_no = ?
+[日志] 01:07:10.929 DEBUG BankAccountMapper.selectByAccountNo - ==> Parameters: BA-DRILL(String)
+[日志] 01:07:10.937 DEBUG BankAccountMapper.selectByAccountNo - <==      Total: 1
+查询结果：BankAccount{id=1, accountNo=null, customerId=1, balance=0.00, createdAt=2026-10-22T01:07:10.926606}
+accountNo = null
+balance   = 0.00
+createdAt = 2026-10-22T01:07:10.926606
+
+退出码：0

@@ -1,0 +1,105 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>报告截图素材</title>
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;padding:0;background:#ffffff;color:#1f2328;
+       font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
+  .term{width:569px;margin:0 0 18px;border:1px solid #d0d7de;border-radius:6px;background:#fff;}
+  .bar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:#f3f5f7;
+       border-bottom:1px solid #d0d7de;border-radius:6px 6px 0 0;}
+  .dot{width:9px;height:9px;border-radius:50%;background:#c9d1d9;}
+  .name{margin-left:8px;font-size:12px;color:#3d444d;}
+  pre{margin:0;padding:12px 14px;font:11px/1.5 Menlo,"SF Mono",Consolas,monospace;
+      white-space:pre-wrap;overflow-wrap:anywhere;color:#24292f;}
+  .term.console pre{font-size:9px;}
+</style></head><body>
+  <section class="term console" id="fig-console">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">实验过程 1 · 控制台菜单与条件查询</span></div>
+    <pre>银行存取款系统
+查询结果：青色框内逐条列出；执行过程：灰色 [日志] 行；✔ 成功  ✘ 失败  ! 提示
+
+1查询客户 2新增客户 3修改客户 4开户 5余额查询
+6存款 7取款 8流水分页 9客户账单 0退出系统
+请选择：姓名关键词：电话关键词：[日志] 01:33:31.224 DEBUG CustomerMapper.selectByCondition - ==&gt;  Preparing: SELECT id, name, phone FROM bank_customer ORDER BY id
+[日志] 01:33:31.231 DEBUG CustomerMapper.selectByCondition - ==&gt; Parameters: 
+[日志] 01:33:31.240 DEBUG CustomerMapper.selectByCondition - &lt;==      Total: 1
+1. Customer{id=1, name=张三, phone=123}
+1查询客户 2新增客户 3修改客户 4开户 5余额查询
+6存款 7取款 8流水分页 9客户账单 0退出系统
+请选择：· 已退出银行系统
+</pre>
+  </section>
+  <section class="term" id="fig-test">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">实验过程 2 · mvn test：42 个用例全部通过</span></div>
+    <pre>[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.757 s -- in com.example.bank.BankServiceTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.168 s -- in com.example.bank.BankInfrastructureTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.161 s -- in com.example.bank.BankConcurrencyTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.089 s -- in com.example.bank.BankConsoleTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.103 s -- in com.example.bank.CustomerMapperTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.572 s -- in com.example.bank.MainSmokeTest
+[INFO] Tests run: 42, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+</pre>
+  </section>
+  <section class="term" id="fig-page">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">实验过程 3 · 分页 SQL：COUNT + LIMIT</span></div>
+    <pre>[日志] 00:39:38.489 DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==&gt;  Preparing: SELECT COUNT(*) AS total FROM bank_transaction WHERE account_id = ?
+[日志] 00:39:38.489 DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==&gt; Parameters: 1(Long)
+[日志] 00:39:38.490 DEBUG BankTransactionMapper.selectAccountPage_mpCount - &lt;==      Total: 1
+[日志] 00:39:38.491 DEBUG BankTransactionMapper.selectAccountPage - ==&gt;  Preparing: SELECT id, account_id, type, amount, balance_before, balance_after, created_at FROM bank_transaction WHERE account_id = ? ORDER BY id DESC LIMIT ?
+[日志] 00:39:38.492 DEBUG BankTransactionMapper.selectAccountPage - ==&gt; Parameters: 1(Long), 10(Long)
+[日志] 00:39:38.492 DEBUG BankTransactionMapper.selectAccountPage - &lt;==      Total: 3
+[日志] 00:39:38.601 DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==&gt;  Preparing: SELECT COUNT(*) AS total FROM bank_transaction WHERE account_id = ?
+[日志] 00:39:38.601 DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==&gt; Parameters: 8(Long)
+[日志] 00:39:38.602 DEBUG BankTransactionMapper.selectAccountPage_mpCount - &lt;==      Total: 1
+[日志] 00:39:38.602 DEBUG BankTransactionMapper.selectAccountPage - ==&gt;  Preparing: SELECT id, account_id, type, amount, balance_before, balance_after, created_at FROM bank_transaction WHERE account_id = ? ORDER BY id DESC LIMIT ?
+[日志] 00:39:38.602 DEBUG BankTransactionMapper.selectAccountPage - ==&gt; Parameters: 8(Long), 10(Long)
+[日志] 00:39:38.602 DEBUG BankTransactionMapper.selectAccountPage - &lt;==      Total: 1
+</pre>
+  </section>
+  <section class="term" id="fig-git">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">Git 提交记录（8 次提交）</span></div>
+    <pre>* fc5a2df 2026-10-22 核对任务清单
+* c825c25 2026-10-22 银行业务
+* db8fb11 2026-10-08 重新上传
+* fca73f8 2026-10-08 1.2全部完成
+* edfd542 2026-09-28 1.2的3.3已完成
+* 5251fd2 2026-09-24 mapper测试
+* 98b26e8 2026-09-24 01
+* 46a3070 2026-09-17 day00
+</pre>
+  </section>
+  <section class="term" id="fig-err1">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">报错 1 · 参数名写错</span></div>
+    <pre># 演练：参数名写错：#{accountNo} -&gt; #{accountno}
+==&gt; 调用 selectByAccountNo(&quot;BA-DRILL&quot;)
+### Error querying database.  Cause: org.apache.ibatis.binding.BindingException: Parameter &#x27;accountno&#x27; not found. Available parameters are [accountNo, param1]
+### Cause: org.apache.ibatis.binding.BindingException: Parameter &#x27;accountno&#x27; not found. Available parameters are [accountNo, param1]
+Caused by: org.apache.ibatis.binding.BindingException: Parameter &#x27;accountno&#x27; not found. Available parameters are [accountNo, param1]
+退出码：1
+</pre>
+  </section>
+  <section class="term" id="fig-err2">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">报错 2 · resultMap 列名写错</span></div>
+    <pre># 演练：resultMap 列名写错：account_no -&gt; account_no_typo
+[日志] 01:07:10.899 DEBUG CustomerMapper.insert - ==&gt;  Preparing: INSERT INTO bank_customer ( name, phone ) VALUES ( ?, ? )
+[日志] 01:07:10.913 DEBUG CustomerMapper.insert - ==&gt; Parameters: 映射演练(String), 100(String)
+[日志] 01:07:10.924 DEBUG BankAccountMapper.insert - ==&gt;  Preparing: INSERT INTO bank_account (account_no, customer_id, balance) VALUES (?, ?, 0.00)
+[日志] 01:07:10.929 DEBUG BankAccountMapper.selectByAccountNo - ==&gt;  Preparing: SELECT id, account_no, customer_id, balance, created_at FROM bank_account WHERE account_no = ?
+[日志] 01:07:10.937 DEBUG BankAccountMapper.selectByAccountNo - &lt;==      Total: 1
+查询结果：BankAccount{id=1, accountNo=null, customerId=1, balance=0.00, createdAt=2026-10-22T01:07:10.926606}
+accountNo = null
+退出码：0
+</pre>
+  </section>
+  <section class="term" id="fig-err3">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">报错 3 · 去掉 useGeneratedKeys</span></div>
+    <pre># 演练：去掉 useGeneratedKeys/keyProperty：主键为 null
+[日志] 01:07:11.354 DEBUG CustomerMapper.insertRows - ==&gt; Parameters: 主键演练(String), 100(String)
+[日志] 01:07:11.357 DEBUG CustomerMapper.insertRows - &lt;==    Updates: 1
+影响行数：1
+回填主键：null
+退出码：0
+</pre>
+  </section>
+</body></html>

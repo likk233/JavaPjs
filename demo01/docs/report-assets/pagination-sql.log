@@ -1,0 +1,12 @@
+[日志] 00:39:38.489 DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==>  Preparing: SELECT COUNT(*) AS total FROM bank_transaction WHERE account_id = ?
+[日志] 00:39:38.489 DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==> Parameters: 1(Long)
+[日志] 00:39:38.490 DEBUG BankTransactionMapper.selectAccountPage_mpCount - <==      Total: 1
+[日志] 00:39:38.491 DEBUG BankTransactionMapper.selectAccountPage - ==>  Preparing: SELECT id, account_id, type, amount, balance_before, balance_after, created_at FROM bank_transaction WHERE account_id = ? ORDER BY id DESC LIMIT ?
+[日志] 00:39:38.492 DEBUG BankTransactionMapper.selectAccountPage - ==> Parameters: 1(Long), 10(Long)
+[日志] 00:39:38.492 DEBUG BankTransactionMapper.selectAccountPage - <==      Total: 3
+[日志] 00:39:38.601 DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==>  Preparing: SELECT COUNT(*) AS total FROM bank_transaction WHERE account_id = ?
+[日志] 00:39:38.601 DEBUG BankTransactionMapper.selectAccountPage_mpCount - ==> Parameters: 8(Long)
+[日志] 00:39:38.602 DEBUG BankTransactionMapper.selectAccountPage_mpCount - <==      Total: 1
+[日志] 00:39:38.602 DEBUG BankTransactionMapper.selectAccountPage - ==>  Preparing: SELECT id, account_id, type, amount, balance_before, balance_after, created_at FROM bank_transaction WHERE account_id = ? ORDER BY id DESC LIMIT ?
+[日志] 00:39:38.602 DEBUG BankTransactionMapper.selectAccountPage - ==> Parameters: 8(Long), 10(Long)
+[日志] 00:39:38.602 DEBUG BankTransactionMapper.selectAccountPage - <==      Total: 1

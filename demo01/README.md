@@ -67,6 +67,10 @@ java -cp "target/classes:$(cat target/runtime-classpath.txt)" org.example.Main
 
 每个测试类创建唯一的 `bank_test_` 数据库，结束后删除；清理逻辑只针对测试自行创建的库，不清空业务库。涵盖 Mapper、参数边界、流水失败回滚、批量原子性、并发扣款、控制台和启动检查。`MainSmokeTest` 启动真正的 `Main` 子进程，完整演示记录写入 `target/bank-main-demo.log`。
 
+## 故障排查演练（任务 5.1）
+
+三组故障（参数名写错、`resultMap` 列名写错、去掉 `useGeneratedKeys`）的注入方式、实际日志、排查结论与截图见 `docs/fault-drill/README.md`。演练使用临时数据库与临时 classpath，不修改 `src` 源码；执行 `bash docs/fault-drill/drill/run-drills.sh` 可复现。
+
 ## 改造范围与限制
 
 已移除员工、部门、学生课程、商城、订单、身份证和旧用户示例的可见源码、映射、SQL、入口与测试；未删除数据库旧表。所有以 `.` 开头的文件和目录保持不动。

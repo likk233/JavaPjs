@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>MyBatis 故障排查演练（任务 5.1）</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: #1e1e2e; color: #cdd6f4;
+         font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 6px; color: #f5f5f5; }
+  .hint { color: #a6adc8; font-size: 13px; margin-bottom: 20px; }
+  .term { width: 100%; margin-bottom: 26px; border: 1px solid #45475a; border-radius: 8px;
+           background: #11111b; }
+  .bar { background: #313244; padding: 9px 12px; display: flex; align-items: center; gap: 8px;
+          border-radius: 8px 8px 0 0; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .red { background: #f38ba8; } .yellow { background: #f9e2af; } .green { background: #a6e3a1; }
+  .name { margin-left: 8px; font-size: 13px; color: #cdd6f4; }
+  .exit { margin-left: auto; font: 12px Menlo, Consolas, monospace; padding: 2px 8px;
+           border-radius: 10px; }
+  .exit.ok { background: #1e3a2f; color: #a6e3a1; }
+  .exit.bad { background: #45202b; color: #f38ba8; }
+  pre { margin: 0; padding: 16px; font: 12.5px/1.55 Menlo, "SF Mono", Consolas, monospace;
+         white-space: pre-wrap; overflow-wrap: anywhere; color: #d9e0ee; }
+</style></head><body>
+<h1>MyBatis 故障排查演练（实验任务 5.1）</h1>
+<div class="hint">以下内容为该项目的实际运行日志（临时数据库 + 故障版 Mapper 覆盖，未修改 src 源码）。</div>
+  <section class="term" id="case1">
+    <div class="bar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="name">故障一 · 参数名写错</span><span class="exit bad">exit 1</span></div>
+    <pre># 演练：参数名写错：#{accountNo} -&gt; #{accountno}
+# 故障设置：s/#{accountNo}/#{accountno}/g
+# 故障文件：BankAccountMapper.xml
+# 命令：java -Dconsole.color=never -cp &lt;tmp&gt;:target/classes:&lt;deps&gt; FaultDrill parameter
+
+==&gt; 调用 selectByAccountNo(&quot;BA-DRILL&quot;)
+Exception in thread &quot;main&quot; org.apache.ibatis.exceptions.PersistenceException: 
+### Error querying database.  Cause: org.apache.ibatis.binding.BindingException: Parameter &#x27;accountno&#x27; not found. Available parameters are [accountNo, param1]
+### Cause: org.apache.ibatis.binding.BindingException: Parameter &#x27;accountno&#x27; not found. Available parameters are [accountNo, param1]
+	at org.apache.ibatis.exceptions.ExceptionFactory.wrapException(ExceptionFactory.java:30)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectList(DefaultSqlSession.java:156)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectList(DefaultSqlSession.java:147)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectList(DefaultSqlSession.java:142)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectOne(DefaultSqlSession.java:75)
+	at com.baomidou.mybatisplus.core.override.MybatisMapperMethod.execute(MybatisMapperMethod.java:87)
+	at com.baomidou.mybatisplus.core.override.MybatisMapperProxy$PlainMethodInvoker.invoke(MybatisMapperProxy.java:152)
+	at com.baomidou.mybatisplus.core.override.MybatisMapperProxy.invoke(MybatisMapperProxy.java:89)
+	at jdk.proxy2/jdk.proxy2.$Proxy11.selectByAccountNo(Unknown Source)
+	at FaultDrill.parameter(FaultDrill.java:35)
+	at FaultDrill.main(FaultDrill.java:24)
+Caused by: org.apache.ibatis.binding.BindingException: Parameter &#x27;accountno&#x27; not found. Available parameters are [accountNo, param1]
+	at org.apache.ibatis.binding.MapperMethod$ParamMap.get(MapperMethod.java:210)
+	at org.apache.ibatis.reflection.wrapper.MapWrapper.get(MapWrapper.java:46)
+	at org.apache.ibatis.reflection.MetaObject.getValue(MetaObject.java:115)
+	at org.apache.ibatis.executor.BaseExecutor.createCacheKey(BaseExecutor.java:225)
+	at org.apache.ibatis.executor.CachingExecutor.createCacheKey(CachingExecutor.java:149)
+	at com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor.intercept(MybatisPlusInterceptor.java:80)
+	at org.apache.ibatis.plugin.Plugin.invoke(Plugin.java:59)
+	at jdk.proxy2/jdk.proxy2.$Proxy10.query(Unknown Source)
+	at org.apache.ibatis.session.defaults.DefaultSqlSession.selectList(DefaultSqlSession.java:154)
+	... 9 more
+
+退出码：1
+</pre>
+  </section>  <section class="term" id="case2">
+    <div class="bar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="name">故障二 · resultMap 列名写错</span><span class="exit ok">exit 0</span></div>
+    <pre># 演练：resultMap 列名写错：account_no -&gt; account_no_typo
+# 故障设置：s/column=&quot;account_no&quot;/column=&quot;account_no_typo&quot;/
+# 故障文件：BankAccountMapper.xml
+# 命令：java -Dconsole.color=never -cp &lt;tmp&gt;:target/classes:&lt;deps&gt; FaultDrill resultmap
+
+[日志] 01:07:10.899 DEBUG CustomerMapper.insert - ==&gt;  Preparing: INSERT INTO bank_customer ( name, phone ) VALUES ( ?, ? )
+[日志] 01:07:10.913 DEBUG CustomerMapper.insert - ==&gt; Parameters: 映射演练(String), 100(String)
+[日志] 01:07:10.918 DEBUG CustomerMapper.insert - &lt;==    Updates: 1
+[日志] 01:07:10.924 DEBUG BankAccountMapper.insert - ==&gt;  Preparing: INSERT INTO bank_account (account_no, customer_id, balance) VALUES (?, ?, 0.00)
+[日志] 01:07:10.925 DEBUG BankAccountMapper.insert - ==&gt; Parameters: BA-DRILL(String), 1(Integer)
+[日志] 01:07:10.928 DEBUG BankAccountMapper.insert - &lt;==    Updates: 1
+[日志] 01:07:10.929 DEBUG BankAccountMapper.selectByAccountNo - ==&gt;  Preparing: SELECT id, account_no, customer_id, balance, created_at FROM bank_account WHERE account_no = ?
+[日志] 01:07:10.929 DEBUG BankAccountMapper.selectByAccountNo - ==&gt; Parameters: BA-DRILL(String)
+[日志] 01:07:10.937 DEBUG BankAccountMapper.selectByAccountNo - &lt;==      Total: 1
+查询结果：BankAccount{id=1, accountNo=null, customerId=1, balance=0.00, createdAt=2026-10-22T01:07:10.926606}
+accountNo = null
+balance   = 0.00
+createdAt = 2026-10-22T01:07:10.926606
+
+退出码：0
+</pre>
+  </section>  <section class="term" id="case3">
+    <div class="bar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="name">故障三 · 去掉 useGeneratedKeys</span><span class="exit ok">exit 0</span></div>
+    <pre># 演练：去掉 useGeneratedKeys/keyProperty：主键为 null
+# 故障设置：s/ useGeneratedKeys=&quot;true&quot; keyProperty=&quot;customers.id&quot;//
+# 故障文件：CustomerMapper.xml
+# 命令：java -Dconsole.color=never -cp &lt;tmp&gt;:target/classes:&lt;deps&gt; FaultDrill generated-key
+
+[日志] 01:07:11.341 DEBUG CustomerMapper.insertRows - ==&gt;  Preparing: INSERT INTO bank_customer (name, phone) VALUES (?, ?)
+[日志] 01:07:11.354 DEBUG CustomerMapper.insertRows - ==&gt; Parameters: 主键演练(String), 100(String)
+[日志] 01:07:11.357 DEBUG CustomerMapper.insertRows - &lt;==    Updates: 1
+影响行数：1
+回填主键：null
+
+退出码：0
+</pre>
+  </section>
+</body></html>
