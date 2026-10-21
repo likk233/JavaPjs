@@ -7,6 +7,8 @@
     <properties resource="db.properties"/>
 
     <settings>
+        <!-- 扫描 Mapper 时忽略外部卷的隐藏元数据，不触碰原始隐藏文件。 -->
+        <setting name="vfsImpl" value="com.example.util.VisibleFilesVfs"/>
         <!-- 开启驼峰命名自动映射 -->
         <setting name="mapUnderscoreToCamelCase" value="true"/>
         <!-- 开启延迟加载：访问关联属性时才执行嵌套查询 -->
@@ -29,19 +31,11 @@
         </environment>
     </environments>
 
-    <!-- 注册 Mapper 映射文件 -->
+    <!-- XML 位于 mapper/ 目录，显式加载；接口统一按实际包名扫描。 -->
     <mappers>
-        <mapper resource="mapper/UserMapper.xml"/>
-        <mapper resource="mapper/ProductMapper.xml"/>
-        <mapper resource="mapper/SupplierMapper.xml"/>
-        <mapper resource="mapper/IdCardMapper.xml"/>
-        <mapper resource="mapper/EmpMapper.xml"/>
-        <mapper resource="mapper/DepMapper.xml"/>
-        <mapper class="com.example.mapper.OrderMapper"/>
-        <!-- MyBatis-Plus BaseMapper 接口 -->
-        <mapper class="com.example.mapper.UserPlusMapper"/>
-        <!-- 学生与课程多对多关联（注解配置 SQL 与延迟加载） -->
-        <mapper class="com.example.mapper.StudentMapper"/>
-        <mapper class="com.example.mapper.CourseMapper"/>
+        <mapper resource="mapper/CustomerMapper.xml"/>
+        <mapper resource="mapper/BankAccountMapper.xml"/>
+        <mapper resource="mapper/BankTransactionMapper.xml"/>
+        <package name="com.example.mapper"/>
     </mappers>
 </configuration>

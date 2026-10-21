@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.BankAccountMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO bank_account (account_no, customer_id, balance)
+        VALUES (#{accountNo}, #{customerId}, 0.00)
+    </insert>
+    <select id="selectByAccountNo" resultType="com.example.entity.BankAccount">
+        SELECT id, account_no, customer_id, balance, created_at
+        FROM bank_account WHERE account_no = #{accountNo}
+    </select>
+    <select id="selectForUpdate" resultType="com.example.entity.BankAccount">
+        SELECT id, account_no, customer_id, balance, created_at
+        FROM bank_account WHERE account_no = #{accountNo} FOR UPDATE
+    </select>
+    <select id="selectByCustomerId" resultType="com.example.entity.BankAccount">
+        SELECT id, account_no, customer_id, balance, created_at
+        FROM bank_account WHERE customer_id = #{customerId} ORDER BY id
+    </select>
+    <update id="updateBalance">
+        UPDATE bank_account SET balance = #{balance} WHERE id = #{id}
+    </update>
+</mapper>

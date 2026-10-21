@@ -1,17 +1,23 @@
 package org.example;
 
-//TIP 要<b>运行</b>代码，请按 <shortcut actionId="Run"/> 或
-// 点击装订区域中的 <icon src="AllIcons.Actions.Execute"/> 图标。
-public class Main {
-    public static void main(String[] args) {
-        //TIP 当文本光标位于高亮显示的文本处时按 <shortcut actionId="ShowIntentionActions"/>
-        // 查看 IntelliJ IDEA 建议如何修正。
-        System.out.printf("Hello and welcome!");
+import com.example.service.BankService;
+import com.example.util.BankSchemaValidator;
+import com.example.util.MyBatisUtil;
+import org.apache.ibatis.datasource.pooled.PooledDataSource;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP 按 <shortcut actionId="Debug"/> 开始调试代码。我们已经设置了一个 <icon src="AllIcons.Debugger.Db_set_breakpoint"/> 断点
-            // 但您始终可以通过按 <shortcut actionId="ToggleLineBreakpoint"/> 添加更多断点。
-            System.out.println("i = " + i);
+/** 银行启动入口；首次运行先执行 sql/bank_init.sql。 */
+public final class Main {
+    private Main() {}
+    public static void main(String[] args) {
+        var factory = MyBatisUtil.getSqlSessionFactory();
+        try {
+            BankSchemaValidator.validate(factory);
+            new BankConsole(new BankService(factory),
+                    new InputStreamReader(System.in, StandardCharsets.UTF_8), System.out).run();
+        } finally {
+            ((PooledDataSource) factory.getConfiguration().getEnvironment().getDataSource()).forceCloseAll();
         }
     }
 }

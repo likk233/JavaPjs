@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.CustomerMapper">
+    <select id="selectByCondition" resultType="com.example.entity.Customer">
+        SELECT id, name, phone FROM bank_customer
+        <where>
+            <if test="condition != null and condition.name != null and !condition.name.isBlank()">
+                AND name LIKE CONCAT('%', #{condition.name}, '%')
+            </if>
+            <if test="condition != null and condition.phone != null and !condition.phone.isBlank()">
+                AND phone LIKE CONCAT('%', #{condition.phone}, '%')
+            </if>
+        </where>
+        ORDER BY id
+    </select>
+    <select id="selectByPriority" resultType="com.example.entity.Customer">
+        SELECT id, name, phone FROM bank_customer
+        <choose>
+            <when test="name != null and !name.isBlank()">WHERE name = #{name}</when>
+            <when test="phone != null and !phone.isBlank()">WHERE phone = #{phone}</when>
+            <otherwise><!-- 没有条件时查询全部 --></otherwise>
+        </choose>
+        ORDER BY id
+    </select>
+    <update id="updateFields">
+        UPDATE bank_customer
+        <set>
+            <if test="customer.name != null">name = #{customer.name},</if>
+            <if test="customer.phone != null">phone = #{customer.phone},</if>
+        </set>
+        WHERE id = #{customer.id}
+    </update>
+    <insert id="insertRows" useGeneratedKeys="true" keyProperty="customers.id">
+        INSERT INTO bank_customer (name, phone) VALUES
+        <foreach collection="customers" item="customer" separator=",">
+            (#{customer.name}, #{customer.phone})
+        </foreach>
+    </insert>
+    <delete id="deleteRows">
+        DELETE FROM bank_customer WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>
