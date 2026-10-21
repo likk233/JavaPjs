@@ -1,20 +1,32 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.mapper.BankAccountMapper">
+    <!-- 列清单复用：所有查询共用同一份列定义 -->
+    <sql id="allColumns">id, account_no, customer_id, balance, created_at</sql>
+
+    <!-- 自定义结果映射：演示下划线列名到驼峰属性的映射 -->
+    <resultMap id="accountMap" type="BankAccount">
+        <id property="id" column="id"/>
+        <result property="accountNo" column="account_no"/>
+        <result property="customerId" column="customer_id"/>
+        <result property="balance" column="balance"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO bank_account (account_no, customer_id, balance)
         VALUES (#{accountNo}, #{customerId}, 0.00)
     </insert>
-    <select id="selectByAccountNo" resultType="com.example.entity.BankAccount">
-        SELECT id, account_no, customer_id, balance, created_at
+    <select id="selectByAccountNo" resultMap="accountMap">
+        SELECT <include refid="allColumns"/>
         FROM bank_account WHERE account_no = #{accountNo}
     </select>
-    <select id="selectForUpdate" resultType="com.example.entity.BankAccount">
-        SELECT id, account_no, customer_id, balance, created_at
+    <select id="selectForUpdate" resultMap="accountMap">
+        SELECT <include refid="allColumns"/>
         FROM bank_account WHERE account_no = #{accountNo} FOR UPDATE
     </select>
-    <select id="selectByCustomerId" resultType="com.example.entity.BankAccount">
-        SELECT id, account_no, customer_id, balance, created_at
+    <select id="selectByCustomerId" resultMap="accountMap">
+        SELECT <include refid="allColumns"/>
         FROM bank_account WHERE customer_id = #{customerId} ORDER BY id
     </select>
     <update id="updateBalance">

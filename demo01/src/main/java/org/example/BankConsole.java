@@ -27,47 +27,20 @@ public final class BankConsole {
         while (true) {
             menu();
             try {
-                String choice = read("请选择：");
-                if (choice.equals("0")) { info("已退出银行系统"); return; }
-                switch (choice) {
-                    case "1" -> success("新增成功：" + bank.addCustomer(read("姓名："), read("电话：")));
-                    case "2" -> {
+                switch (read("请选择：")) {
+                    case "0" -> { info("已退出银行系统"); return; }
+                    case "1" -> printResults("条件查询结果", bank.findCustomers(new Customer(null, optional("姓名关键词："), optional("电话关键词："))));
+                    case "2" -> success("新增成功：" + bank.addCustomer(read("姓名："), read("电话：")));
+                    case "3" -> {
                         Customer c = new Customer(integer("客户编号："), optional("新姓名（留空不修改）："), optional("新电话（留空不修改）："));
                         success("更新客户数：" + bank.updateCustomer(c));
                     }
-                    case "3" -> printResults("条件查询结果", bank.findCustomers(new Customer(null, optional("姓名关键词："), optional("电话关键词："))));
-                    case "4" -> printResults("优先查询结果", bank.findCustomersByPriority(optional("姓名（优先精确匹配）："), optional("电话：")));
-                    case "5" -> {
-                        long current = number("页码："), size = number("每页条数：");
-                        var page = bank.customerPage(current, size, optional("姓名关键词："), optional("电话关键词："));
-                        info("客户总数：" + page.getTotal()); printResults("客户分页结果", page.getRecords());
-                    }
-                    case "6" -> {
-                        int count = integer("客户数量：");
-                        if (count <= 0) throw new IllegalArgumentException("客户数量必须大于零");
-                        List<Customer> customers = new ArrayList<>();
-                        for (int i = 0; i < count; i++) customers.add(new Customer(null, read("姓名："), read("电话：")));
-                        success("批量新增客户数：" + bank.addCustomers(customers));
-                    }
-                    case "7" -> {
-                        List<Integer> ids = Arrays.stream(read("客户编号（用英文逗号分隔）：").split(",", -1))
-                                .map(String::strip).map(Integer::valueOf).toList();
-                        success("批量删除客户数：" + bank.deleteCustomers(ids));
-                    }
-                    case "8" -> {
-                        String id = read("已有客户编号（留空登记新客户）：");
-                        var account = id.isEmpty() ? bank.openAccount(read("姓名："), read("电话："))
-                                : bank.openAccount(Integer.valueOf(id));
-                        success("开户成功，账号：" + account.getAccountNo() + "，余额：" + account.getBalance().toPlainString());
-                    }
-                    case "9" -> success("存款成功：" + bank.deposit(read("账号："), amount()));
-                    case "10" -> success("取款成功：" + bank.withdraw(read("账号："), amount()));
-                    case "11" -> info("账户信息：" + bank.account(read("账号：")));
-                    case "12" -> {
-                        var page = bank.transactions(read("账号："), number("页码："), number("每页条数："));
-                        info("流水总数：" + page.getTotal()); printResults("流水明细", page.getRecords());
-                    }
-                    case "13" -> printResults("客户账户", bank.accounts(integer("客户编号：")));
+                    case "4" -> openAccount();
+                    case "5" -> balanceQuery();
+                    case "6" -> deposit();
+                    case "7" -> withdraw();
+                    case "8" -> transactionPage();
+                    case "9" -> customerStatement();
                     default -> warn("无效菜单选项，请重新选择");
                 }
             } catch (EndOfInput e) {
@@ -77,11 +50,38 @@ public final class BankConsole {
             } catch (IllegalArgumentException e) {
                 failure("操作失败：" + e.getMessage());
             } catch (PersistenceException e) {
-                failure("数据库操作失败：请检查连接或数据约束；已有账户的客户不能删除");
+                failure("数据库操作失败：请检查连接或数据约束");
                 LOG.error("银行操作失败，事务已回滚", e);
             }
         }
     }
+
+    /** 4 开户：输入已有客户编号，或留空登记新客户。 */
+    private void openAccount() {
+        String id = read("已有客户编号（留空登记新客户）：");
+        var account = id.isEmpty() ? bank.openAccount(read("姓名："), read("电话："))
+                : bank.openAccount(Integer.valueOf(id));
+        success("开户成功，账号：" + account.getAccountNo() + "，余额：" + account.getBalance().toPlainString());
+    }
+
+    /** 5 余额查询。 */
+    private void balanceQuery() { info("账户信息：" + bank.account(read("账号："))); }
+
+    /** 6 存款。 */
+    private void deposit() { success("存款成功：" + bank.deposit(read("账号："), amount())); }
+
+    /** 7 取款。 */
+    private void withdraw() { success("取款成功：" + bank.withdraw(read("账号："), amount())); }
+
+    /** 8 流水分页。 */
+    private void transactionPage() {
+        var page = bank.transactions(read("账号："), number("页码："), number("每页条数："));
+        info("流水总数：" + page.getTotal());
+        printResults("流水明细", page.getRecords());
+    }
+
+    /** 9 客户账单：列出客户名下的全部账户。 */
+    private void customerStatement() { printResults("客户账单", bank.accounts(integer("客户编号："))); }
 
     /** 总显示宽度（含边框），可用 -Dconsole.width=120 调整。 */
     private static final int BOX_WIDTH = Math.max(60, Integer.getInteger("console.width", 80));
@@ -104,8 +104,8 @@ public final class BankConsole {
 
     /** 菜单用灰色弱化，避免和查询结果抢注意力。 */
     private void menu() {
-        out.println(ConsoleStyle.dim("1新增客户 2修改客户 3条件查询 4优先查询 5客户分页 6批量新增 7批量删除"));
-        out.println(ConsoleStyle.dim("8开户 9存款 10取款 11余额查询 12流水分页 13客户账户 0退出"));
+        out.println(ConsoleStyle.dim("1查询客户 2新增客户 3修改客户 4开户 5余额查询"));
+        out.println(ConsoleStyle.dim("6存款 7取款 8流水分页 9客户账单 0退出系统"));
     }
 
     /** 查询结果统一放进青色边框，并在标题里标注条数，与运行过程明确区分。 */

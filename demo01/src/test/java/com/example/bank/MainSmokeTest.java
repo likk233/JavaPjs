@@ -33,13 +33,13 @@ class MainSmokeTest extends BankTestSupport {
             } catch (IOException e) { throw new UncheckedIOException(e); }
         });
         try (var input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8)) {
-            input.write("8\n\n完整演示客户\n13800138000\n"); input.flush();
+            input.write("4\n\n完整演示客户\n13800138000\n"); input.flush();
             if (!opened.await(15, TimeUnit.SECONDS)) {
                 child.destroyForcibly(); capture.get(5, TimeUnit.SECONDS);
                 fail("Main 未完成开户："+transcript);
             }
             String no = number.get();
-            input.write("9\n"+no+"\n100.50\n10\n"+no+"\n20.25\n11\n"+no+"\n12\n"+no+"\n1\n10\n0\n"); input.flush();
+            input.write("6\n"+no+"\n100.50\n7\n"+no+"\n20.25\n5\n"+no+"\n8\n"+no+"\n1\n10\n0\n"); input.flush();
             assertTrue(child.waitFor(20, TimeUnit.SECONDS)); capture.get(5, TimeUnit.SECONDS);
             assertEquals(0, child.exitValue(), transcript.toString());
             assertTrue(transcript.toString().contains("balance=80.25"),transcript.toString());

@@ -1,20 +1,31 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.mapper.CustomerMapper">
-    <select id="selectByCondition" resultType="com.example.entity.Customer">
-        SELECT id, name, phone FROM bank_customer
-        <where>
+    <!-- 列清单复用：所有查询共用同一份列定义 -->
+    <sql id="allColumns">id, name, phone</sql>
+
+    <!-- 自定义结果映射：与表结构一一对应 -->
+    <resultMap id="customerMap" type="Customer">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="phone" column="phone"/>
+    </resultMap>
+
+    <select id="selectByCondition" resultMap="customerMap">
+        SELECT <include refid="allColumns"/> FROM bank_customer
+        <!-- 用 <trim> 等效实现 <where>：自动补 WHERE，并去掉开头多余的 AND/OR -->
+        <trim prefix="WHERE" prefixOverrides="AND |OR ">
             <if test="condition != null and condition.name != null and !condition.name.isBlank()">
                 AND name LIKE CONCAT('%', #{condition.name}, '%')
             </if>
             <if test="condition != null and condition.phone != null and !condition.phone.isBlank()">
                 AND phone LIKE CONCAT('%', #{condition.phone}, '%')
             </if>
-        </where>
+        </trim>
         ORDER BY id
     </select>
-    <select id="selectByPriority" resultType="com.example.entity.Customer">
-        SELECT id, name, phone FROM bank_customer
+    <select id="selectByPriority" resultMap="customerMap">
+        SELECT <include refid="allColumns"/> FROM bank_customer
         <choose>
             <when test="name != null and !name.isBlank()">WHERE name = #{name}</when>
             <when test="phone != null and !phone.isBlank()">WHERE phone = #{phone}</when>

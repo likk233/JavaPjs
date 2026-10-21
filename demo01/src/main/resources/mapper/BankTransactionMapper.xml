@@ -1,17 +1,31 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.mapper.BankTransactionMapper">
+    <!-- 列清单复用：所有查询共用同一份列定义 -->
+    <sql id="allColumns">id, account_id, type, amount, balance_before, balance_after, created_at</sql>
+
+    <!-- 自定义结果映射：演示下划线列名到驼峰属性的映射 -->
+    <resultMap id="transactionMap" type="BankTransaction">
+        <id property="id" column="id"/>
+        <result property="accountId" column="account_id"/>
+        <result property="type" column="type"/>
+        <result property="amount" column="amount"/>
+        <result property="balanceBefore" column="balance_before"/>
+        <result property="balanceAfter" column="balance_after"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO bank_transaction
             (account_id, type, amount, balance_before, balance_after)
         VALUES (#{accountId}, #{type}, #{amount}, #{balanceBefore}, #{balanceAfter})
     </insert>
-    <select id="selectById" resultType="com.example.entity.BankTransaction">
-        SELECT id, account_id, type, amount, balance_before, balance_after, created_at
+    <select id="selectById" resultMap="transactionMap">
+        SELECT <include refid="allColumns"/>
         FROM bank_transaction WHERE id = #{id}
     </select>
-    <select id="selectAccountPage" resultType="com.example.entity.BankTransaction">
-        SELECT id, account_id, type, amount, balance_before, balance_after, created_at
+    <select id="selectAccountPage" resultMap="transactionMap">
+        SELECT <include refid="allColumns"/>
         FROM bank_transaction WHERE account_id = #{accountId} ORDER BY id DESC
     </select>
 </mapper>
